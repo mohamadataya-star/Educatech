@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Friv Classics · Jogos Free</title>
+    <!-- Estilo Friv / Retro -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #2b1e3a 0%, #1c1327 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* cabeçalho estilo friv */
+        .header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 215, 0, 0.15);
+            backdrop-filter: blur(6px);
+            padding: 12px 24px;
+            border-radius: 60px;
+            margin-bottom: 30px;
+            border: 2px solid #ffd966;
+            box-shadow: 0 8px 0 #6b4f3c;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #feda75, #f9b81b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 3px 3px 0 #7a4d1a;
+            letter-spacing: 2px;
+        }
+
+        .logo span {
+            font-size: 1.8rem;
+            background: #ffb347;
+            padding: 0 12px;
+            border-radius: 40px;
+            color: #1e122a;
+            font-weight: 700;
+            box-shadow: inset -2px -2px 0 #6b3f1c;
+        }
+
+        .nav-icons {
+            display: flex;
+            gap: 18px;
+            align-items: center;
+        }
+
+        .nav-icons a {
+            color: #f5e3b3;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 18px;
+            border-radius: 50px;
+            background: #332244;
+            border-bottom: 4px solid #7a5f3e;
+            transition: 0.15s;
+            font-size: 1rem;
+            box-shadow: 0 2px 0 #1f142b;
+        }
+
+        .nav-icons a:hover {
+            background: #4d3366;
+            border-bottom-color: #f9b81b;
+            transform: scale(1.02);
+            color: #fff3cf;
+        }
+
+        .destaque {
+            background: #f9b81b;
+            color: #1c1327 !important;
+            border-bottom: 4px solid #b87c1a !important;
+        }
+
+        .destaque:hover {
+            background: #ffcf5c !important;
+        }
+
+        /* grid de jogos */
+        .game-grid {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 28px;
+            justify-content: center;
+            padding: 10px 0 40px;
+        }
+
+        .game-card {
+            background: #2d1f3f;
+            border-radius: 30px 30px 20px 20px;
+            padding: 16px 10px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 12px 0 #110b18, 0 8px 20px rgba(0,0,0,0.7);
+            border: 2px solid #5c4270;
+            transition: transform 0.2s ease, box-shadow 0.15s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .game-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 16px 0 #110b18, 0 12px 25px #000000cc;
+            border-color: #f9b81b;
+        }
+
+        .game-card:active {
+            transform: translateY(0px);
+            box-shadow: 0 8px 0 #110b18;
+        }
+
+        .game-thumb {
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #1a1123;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.8rem;
+            border: 3px solid #4b3461;
+            margin-bottom: 10px;
+            transition: 0.2s;
+            box-shadow: inset 0 -6px 0 #2a1c38;
+        }
+
+        .game-card:hover .game-thumb {
+            border-color: #f5c542;
+        }
+
+        .game-title {
+            font-weight: 700;
+            color: #f5e3c4;
+            font-size: 0.95rem;
+            text-align: center;
+            letter-spacing: 0.3px;
+            background: #1d1429;
+            padding: 4px 14px;
+            border-radius: 40px;
+            border-bottom: 3px solid #4b3461;
+            width: fit-content;
+            margin-top: 4px;
+        }
+
+        .game-tag {
+            font-size: 0.7rem;
+            background: #4a2e5e;
+            padding: 2px 12px;
+            border-radius: 30px;
+            color: #c6b0de;
+            margin-top: 6px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        /* modal / iframe */
+        .modal-game {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            padding: 15px;
+        }
+
+        .modal-game.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: #1f152b;
+            border-radius: 40px;
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            border: 3px solid #f9b81b;
+            box-shadow: 0 25px 40px #000000dd;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 24px;
+            background: #2d1d3d;
+            border-bottom: 3px solid #5f4278;
+        }
+
+        .modal-header h3 {
+            color: #ffdb8a;
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: #d94f4f;
+            border: none;
+            color: white;
+            font-size: 1.7rem;
+            font-weight: bold;
+            width: 44px;
+            height: 44px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 5px 0 #751f1f;
+            border-bottom: 2px solid #a33;
+        }
+
+        .modal-close:hover {
+            background: #ff6b6b;
+            transform: scale(0.96);
+        }
+
+        .game-iframe-container {
+            flex: 1;
+            background: #0d0813;
+            position: relative;
+        }
+
+        .game-iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #19121f;
+        }
+
+        .fallback-msg {
+            color: #bb9ddb;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+        }
+
+        /* responsivo */
+        @media (max-width: 700px) {
+            .header {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                border-radius: 30px;
+                padding: 16px;
+            }
+            .logo h1 { font-size: 1.8rem; }
+            .nav-icons a { padding: 6px 14px; font-size: 0.9rem; }
+            .game-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+            .modal-box { max-height: 90vh; height: 95%; }
+        }
+
+        @media (max-width: 450px) {
+            .game-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .game-thumb { font-size: 2.6rem; }
+        }
+
+        /* rodapé */
+        .footer {
+            margin-top: 15px;
+            color: #8f7aa3;
+            font-weight: 500;
+            background: #1f142b;
+            padding: 10px 30px;
+            border-radius: 40px;
+            border: 1px solid #4f3665;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+        .footer span { color: #f9b81b; }
+    </style>
+</head>
+<body>
+    <!-- cabeçalho -->
+    <header class="header">
+        <div class="logo">
+            <h1>🎮 Frov</h1>
+            <span>Games</span>
+        </div>
+        <div class="nav-icons">
+            <a href="#" class="destaque">🏠 Jogos</a>
+            <a href="#">⭐ Favoritos</a>
+            <a href="#">📅 Novos</a>
+        </div>
+    </header>
+
+    <!-- grade de jogos -->
+    <section class="game-grid" id="gameGrid"></section>
+
+    <!-- rodapé -->
+    <div class="footer">
+        <span>✦</span> Frov Classic · Jogos livres <span>✦</span>
+    </div>
+
+    <!-- modal do jogo -->
+    <div class="modal-game" id="gameModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="modalGameTitle">Jogo</h3>
+                <button class="modal-close" id="modalCloseBtn">✕</button>
+            </div>
+            <div class="game-iframe-container" id="iframeContainer">
+                <!-- iframe será inserido aqui -->
+                <div class="fallback-msg" id="fallbackMsg">
+                    🕹️ Carregando jogo...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ---------- LISTA DE JOGOS (estilo Friv / clássicos) ----------
+            const GAMES = [
+                {
+                    id: 'fireboy-watergirl',
+                    title: '🔥 Fireboy & Watergirl',
+                    emoji: '🧊',
+                    tag: 'Aventura',
+                    url: 'https://scratch.mit.edu/projects/1363909446/'
+                },
+                {
+                    id: 'happy-wheels',
+                    title: '🚴 Happy Wheels',
+                    emoji: '💀',
+                    tag: 'Corrida',
+                    url: 'https://html5.gamedistribution.com/9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d/'
+                },
+                {
+                    id: 'run-3',
+                    title: '🏃 Run 3',
+                    emoji: '🚀',
+                    tag: 'Corrida',
+                    url: 'https://html5.gamedistribution.com/7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f/'
+                },
+                {
+                    id: 'moto-x3m',
+                    title: '🏍️ Moto X3M',
+                    emoji: '🏁',
+                    tag: 'Motos',
+                    url: 'https://html5.gamedistribution.com/5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d/'
+                },
+                {
+                    id: 'slope',
+                    title: '⚡ Slope',
+                    emoji: '🔵',
+                    tag: 'Habilidade',
+                    url: 'https://html5.gamedistribution.com/2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e/'
+                },
+                {
+                    id: 'temple-run',
+                    title: '🏛️ Temple Run',
+                    emoji: '🐒',
+                    tag: 'Aventura',
+                    url: 'https://html5.gamedistribution.com/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d/'
+                },
+                {
+                    id: 'subway-surfers',
+                    title: '🚇 Subway Surfers',
+                    emoji: '🏄',
+                    tag: 'Corrida',
+                    url: 'https://html5.gamedistribution.com/8f7a8b2f6b3c4d5e8a9b0c1d2e3f4a5b/'
+                },
+                {
+                    id: 'paper-io',
+                    title: '📄 Paper.io',
+                    emoji: '🟩',
+                    tag: 'Estratégia',
+                    url: 'https://html5.gamedistribution.com/4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a/'
+                },
+                {
+                    id: 'bubble-shooter',
+                    title: '🫧 Bubble Shooter',
+                    emoji: '🔮',
+                    tag: 'Quebra-cabeça',
+                    url: 'https://html5.gamedistribution.com/3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b/'
+                },
+                {
+                    id: 'pacman',
+                    title: '🟡 Pac-Man',
+                    emoji: '👻',
+                    tag: 'Clássico',
+                    url: './pacman'
+                },
+                {
+                    id: 'snake',
+                    title: '🐍 Snake',
+                    emoji: '🍎',
+                    tag: 'Clássico',
+                    url: 'https://html5.gamedistribution.com/2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a/'
+                },
+                {
+                    id: 'tetris',
+                    title: '🧩 Tetris',
+                    emoji: '🔲',
+                    tag: 'Clássico',
+                    url: 'https://html5.gamedistribution.com/1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e/'
+                }
+            ];
+
+            const grid = document.getElementById('gameGrid');
+            const modal = document.getElementById('gameModal');
+            const modalTitle = document.getElementById('modalGameTitle');
+            const iframeContainer = document.getElementById('iframeContainer');
+            const fallbackMsg = document.getElementById('fallbackMsg');
+            const closeBtn = document.getElementById('modalCloseBtn');
+
+            // constrói os cards
+            function renderGames() {
+                grid.innerHTML = '';
+                GAMES.forEach((game, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'game-card';
+                    card.setAttribute('data-index', index);
+                    // thumb com emoji
+                    card.innerHTML = `
+                        <div class="game-thumb">${game.emoji}</div>
+                        <div class="game-title">${game.title}</div>
+                        <div class="game-tag">${game.tag}</div>
+                    `;
+                    card.addEventListener('click', () => openGame(index));
+                    grid.appendChild(card);
+                });
+            }
+
+            // Abrir jogo no modal
+            function openGame(index) {
+                const game = GAMES[index];
+                if (!game) return;
+
+                modalTitle.textContent = `${game.emoji} ${game.title}`;
+                // limpa iframe antigo
+                const oldIframe = iframeContainer.querySelector('iframe');
+                if (oldIframe) oldIframe.remove();
+
+                // esconde fallback
+                fallbackMsg.style.display = 'none';
+
+                // cria iframe
+                const iframe = document.createElement('iframe');
+                iframe.src = game.url;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.loading = 'lazy';
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                iframe.style.background = '#110b18';
+
+                // se falhar, mostra fallback (evento error)
+                iframe.addEventListener('error', function() {
+                    fallbackMsg.style.display = 'block';
+                    fallbackMsg.innerHTML = `⚠️ Não foi possível carregar ${game.title}. Tente novamente.`;
+                });
+
+                iframeContainer.prepend(iframe);
+                // mostra modal
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            // fechar modal
+            function closeModal() {
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+                // opcional: remove iframe para liberar memória
+                const iframe = iframeContainer.querySelector('iframe');
+                if (iframe) iframe.remove();
+                fallbackMsg.style.display = 'block';
+                fallbackMsg.innerHTML = '🕹️ Carregando jogo...';
+            }
+
+            // eventos
+            closeBtn.addEventListener('click', closeModal);
+
+            // clicar fora do modal (no fundo escuro) fecha também
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal();
+            });
+
+            // tecla ESC fecha
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.classList.contains('active')) {
+                    closeModal();
+                }
+            });
+
+            // Inicializa
+            renderGames();
+
+            // (Opcional) Botão de "Favoritos" e "Novos" só para efeito visual
+            // Adiciona um pequeno comportamento nos links do header
+            document.querySelectorAll('.nav-icons a').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (this.textContent.includes('Favoritos') || this.textContent.includes('Novos')) {
+                        e.preventDefault();
+                        alert('⭐ Esta é uma demonstração do Friv Classico!');
+                    }
+                });
+            });
+
+        })();
+    </script>
+</body>
+</html>
