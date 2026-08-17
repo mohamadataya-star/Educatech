@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakout · Clássico</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { background: #0a0a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Courier New', monospace; }
+        .game-wrapper { background: #1a1a2e; padding: 2rem; border-radius: 2rem; border: 2px solid #3a3a5a; box-shadow: 0 20px 40px rgba(0,0,0,0.8); text-align: center; }
+        canvas { display: block; margin: 0 auto; border-radius: 16px; background: #0a0a1a; width: 500px; height: 400px; box-shadow: inset 0 0 30px rgba(100, 100, 255, 0.05); }
+        .info-panel { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 0.5rem 1.5rem; background: #12122a; border-radius: 60px; border: 1px solid #2a2a4a; color: #aabbdd; flex-wrap: wrap; gap: 0.5rem; }
+        .info-panel .stat { display: flex; gap: 0.8rem; align-items: center; }
+        .info-panel .stat label { font-size: 0.8rem; color: #6a7a9a; }
+        .info-panel .stat span { font-size: 1.2rem; font-weight: bold; }
+        .info-panel .stat span.score { color: #f7e05e; }
+        .info-panel .stat span.lives { color: #44ddff; }
+        button { background: #2a2a5a; border: none; color: white; font-weight: bold; font-size: 0.9rem; padding: 0.4rem 1.2rem; border-radius: 60px; border: 1px solid #4a4a7a; cursor: pointer; font-family: 'Courier New', monospace; transition: 0.1s; }
+        button:hover { background: #3a3a7a; transform: scale(1.02); }
+        button:active { transform: scale(0.95); }
+        .controls-hint { color: #4a5a7a; font-size: 0.7rem; text-align: center; margin-top: 0.5rem; }
+        @media (max-width: 550px) { .game-wrapper { padding: 1rem; } canvas { width: 95vw; height: 76vw; max-width: 500px; max-height: 400px; } }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas" width="500" height="400"></canvas>
+    <div class="info-panel">
+        <div class="stat"><label>🎯 PONTOS</label><span class="score" id="scoreDisplay">0</span></div>
+        <div class="stat"><label>❤️ VIDAS</label><span class="lives" id="livesDisplay">3</span></div>
+        <button id="resetButton">↺ NOVO</button>
+    </div>
+    <div class="controls-hint">⬅ ➡ Mover · Destrua todos os blocos!</div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreSpan = document.getElementById('scoreDisplay');
+        const livesSpan = document.getElementById('livesDisplay');
+
+        const W = 500, H = 400;
+        const PADDLE_W = 80, PADDLE_H = 12, PADDLE_Y = H - 30;
+        const BALL_SIZE = 8;
+        const BALL_SPEED = 4;
+        const ROWS = 5, COLS = 8;
+        const BLOCK_W = 50, BLOCK_H = 18;
+        const BLOCK_TOP = 40;
+
+        // ========== ESTADO ==========
+        let paddle = { x: W/2 - PADDLE_W/2, y: PADDLE_Y, w: PADDLE_W, h: PADDLE_H, speed: 6 };
+        let ball = { x: W/2, y: PADDLE_Y - 12, dx: BALL_SPEED, dy: -BALL_SPEED, size: BALL_SIZE, stuck: true };
+        let blocks = [];
+        let score = 0;
+        let lives = 3;
+        let gameState = 'playing';
+
+        // Cores dos blocos
+        const BLOCK_COLORS = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db'];
+
+        // ========== FUNÇÕES ==========
+        function resetGame() {
+            createBlocks();
+            paddle.x = W/2 - PADDLE_W/2;
+            ball.x = W/2;
+            ball.y = PADDLE_Y - 12;
+            ball.dx = BALL_SPEED;
+            ball.dy = -BALL_SPEED;
+            ball.stuck = true;
+            score = 0;
+            lives = 3;
+            gameState = 'playing';
+            updateUI();
+        }
+
+        function createBlocks() {
+            blocks = [];
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const x = col * (BLOCK_W + 6) + 20;
+                    const y = row * (BLOCK_H + 6) + BLOCK_TOP;
+                    blocks.push({
+                        x: x, y: y, w: BLOCK_W, h: BLOCK_H,
+                        alive: true,
+                        color: BLOCK_COLORS[row % BLOCK_COLORS.length]
+                    });
+                }
+            }
+        }
+
+        function updateUI() {
+            scoreSpan.textContent = score;
+            livesSpan.textContent = lives;
+        }
+
+        // ========== ATUALIZAÇÃO ==========
+        function update() {
+            if (gameState !== 'playing') return;
+
+            // Movimento da raquete (teclado)
+            if (keys.left && paddle.x > 0) paddle.x -= paddle.speed;
+            if (keys.right && paddle.x + paddle.w < W) paddle.x += paddle.speed;
+
+            // Bola presa
+            if (ball.stuck) {
+                ball.x = paddle.x + paddle.w/2;
+                if (keys.space) {
+                    ball.stuck = false;
+                    const angle = (Math.random() - 0.5) * 0.8;
+                    const speed = BALL_SPEED;
+                    ball.dx = Math.sin(angle) * speed;
+                    ball.dy = -Math.cos(angle) * speed;
+                }
+                return;
+            }
+
+            // Move bola
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Colisão com paredes
+            if (ball.x - ball.size < 0 || ball.x + ball.size > W) ball.dx *= -1;
+            if (ball.y - ball.size < 0) ball.dy *= -1;
+
+            // Colisão com a raquete
+            if (ball.dy > 0 && 
+                ball.y + ball.size > paddle.y && 
+                ball.y + ball.size < paddle.y + paddle.h + 10 &&
+                ball.x > paddle.x && ball.x < paddle.x + paddle.w) {
+                // Angulo baseado na posição do clique
+                const hitPos = (ball.x - paddle.x) / paddle.w;
+                const angle = (hitPos - 0.5) * 1.2;
+                const speed = Math.sqrt(ball.dx*ball.dx + ball.dy*ball.dy);
+                ball.dx = Math.sin(angle) * speed;
+                ball.dy = -Math.cos(angle) * speed;
+                ball.y = paddle.y - ball.size;
+            }
+
+            // Bola caiu
+            if (ball.y + ball.size > H) {
+                lives--;
+                updateUI();
+                if (lives <= 0) {
+                    gameState = 'gameover';
+                    return;
+                }
+                ball.stuck = true;
+                ball.x = paddle.x + paddle.w/2;
+                ball.y = paddle.y - 12;
+                return;
+            }
+
+            // Colisão com blocos
+            for (let block of blocks) {
+                if (!block.alive) continue;
+                if (ball.x + ball.size > block.x && ball.x - ball.size < block.x + block.w &&
+                    ball.y + ball.size > block.y && ball.y - ball.size < block.y + block.h) {
+                    block.alive = false;
+                    score += 10 + (ROWS - Math.floor(block.y / 50)) * 2;
+                    updateUI();
+
+                    // Direção da colisão
+                    const overlapX = Math.min(ball.x + ball.size - block.x, block.x + block.w - (ball.x - ball.size));
+                    const overlapY = Math.min(ball.y + ball.size - block.y, block.y + block.h - (ball.y - ball.size));
+                    if (overlapX < overlapY) ball.dx *= -1;
+                    else ball.dy *= -1;
+                    break;
+                }
+            }
+
+            // Verifica vitória
+            if (blocks.every(b => !b.alive)) {
+                gameState = 'won';
+            }
+        }
+
+        // ========== DESENHO ==========
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+
+            // Fundo
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, W, H);
+
+            // Blocos
+            for (let block of blocks) {
+                if (!block.alive) continue;
+                ctx.shadowColor = block.color;
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = block.color;
+                ctx.beginPath();
+                ctx.roundRect(block.x, block.y, block.w, block.h, 4);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Brilho
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.fillRect(block.x + 4, block.y + 3, block.w - 8, 4);
+            }
+
+            // Raquete
+            ctx.shadowColor = '#44ddff';
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = '#44ddff';
+            ctx.beginPath();
+            ctx.roundRect(paddle.x, paddle.y, paddle.w, paddle.h, 6);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            // Detalhe
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.fillRect(paddle.x + 10, paddle.y + 3, paddle.w - 20, 3);
+
+            // Bola
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            // Brilho da bola
+            ctx.fillStyle = 'rgba(200,200,255,0.3)';
+            ctx.beginPath();
+            ctx.arc(ball.x - 2, ball.y - 3, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Game Over / Win
+            if (gameState === 'gameover') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+                ctx.font = 'bold 40px "Courier New"';
+                ctx.fillStyle = '#ff4d6d'; ctx.shadowColor = '#ff1a40'; ctx.shadowBlur = 30;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('💀 GAME OVER', W/2, H/2 - 15);
+                ctx.shadowBlur = 0;
+                ctx.font = '18px "Courier New"';
+                ctx.fillStyle = '#aabbdd';
+                ctx.fillText(`Pontos: ${score}`, W/2, H/2 + 35);
+            } else if (gameState === 'won') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+                ctx.font = 'bold 40px "Courier New"';
+                ctx.fillStyle = '#f7e05e'; ctx.shadowColor = '#ffbb33'; ctx.shadowBlur = 30;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('🏆 VENCEU!', W/2, H/2 - 15);
+                ctx.shadowBlur = 0;
+                ctx.font = '18px "Courier New"';
+                ctx.fillStyle = '#aabbdd';
+                ctx.fillText(`Pontos: ${score}`, W/2, H/2 + 35);
+            }
+            ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+        }
+
+        // Polyfill roundRect
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (r > w/2) r = w/2;
+                if (r > h/2) r = h/2;
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                return this;
+            };
+        }
+
+        // ========== CONTROLES ==========
+        let keys = { left: false, right: false, space: false };
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowLeft') { keys.left = true; e.preventDefault(); }
+            if (e.key === 'ArrowRight') { keys.right = true; e.preventDefault(); }
+            if (e.key === ' ') { keys.space = true; e.preventDefault(); }
+            if (e.key === 'r' || e.key === 'R') resetGame();
+        });
+
+        document.addEventListener('keyup', e => {
+            if (e.key === 'ArrowLeft') { keys.left = false; e.preventDefault(); }
+            if (e.key === 'ArrowRight') { keys.right = false; e.preventDefault(); }
+            if (e.key === ' ') { keys.space = false; e.preventDefault(); }
+        });
+
+        document.getElementById('resetButton').addEventListener('click', resetGame);
+
+        // ===== LOOP =====
+        resetGame();
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+        loop();
+
+        canvas.setAttribute('tabindex', '0');
+        canvas.focus();
+        canvas.addEventListener('click', () => canvas.focus());
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Run 3 · Versão Simplificada</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0a0a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        .game-wrapper {
+            background: #1a1a2e;
+            padding: 2rem;
+            border-radius: 2rem;
+            border: 2px solid #3a3a5a;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+        canvas {
+            display: block;
+            border-radius: 16px;
+            background: #0a0a1a;
+            width: 700px;
+            height: 450px;
+            box-shadow: inset 0 0 30px rgba(100, 100, 255, 0.1);
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            padding: 0.5rem 1.5rem;
+            background: #12122a;
+            border-radius: 60px;
+            border: 1px solid #2a2a4a;
+            color: #aabbdd;
+        }
+        .info-panel .stat {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+        .info-panel .stat label {
+            font-size: 0.8rem;
+            color: #6a7a9a;
+        }
+        .info-panel .stat span {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #7bff7b;
+        }
+        .info-panel .stat span.distance {
+            color: #f7e05e;
+        }
+        button {
+            background: #2a2a5a;
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            padding: 0.4rem 1.5rem;
+            border-radius: 60px;
+            border: 1px solid #4a4a7a;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: 0.1s;
+        }
+        button:hover {
+            background: #3a3a7a;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        .controls-hint {
+            color: #4a5a7a;
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        @media (max-width: 750px) {
+            .game-wrapper { padding: 1rem; }
+            canvas { width: 95vw; height: 60vw; max-width: 700px; max-height: 450px; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas" width="700" height="450"></canvas>
+
+    <div class="info-panel">
+        <div class="stat">
+            <label>🏃 DISTÂNCIA</label>
+            <span class="distance" id="distanceDisplay">0</span>
+        </div>
+        <div class="stat">
+            <label>⚡ VELOCIDADE</label>
+            <span id="speedDisplay">1.0</span>
+        </div>
+        <button id="resetButton">↺ NOVO</button>
+    </div>
+    <div class="controls-hint">⬆ / Espaço = Pular · ⬅ ➡ = Mover · Corra infinitamente!</div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const distanceSpan = document.getElementById('distanceDisplay');
+    const speedSpan = document.getElementById('speedDisplay');
+
+    const W = 700, H = 450;
+    const GRAVITY = 0.6;
+    const JUMP_FORCE = -12;
+
+    // Jogador
+    let player = {
+        x: 150,
+        y: 350,
+        vy: 0,
+        size: 20,
+        onGround: true
+    };
+
+    // Obstáculos
+    let obstacles = [];
+    let distance = 0;
+    let speed = 3;
+    let gameState = 'playing';
+    let frameCount = 0;
+    let spawnTimer = 0;
+
+    // Controles
+    let keys = { left: false, right: false, up: false };
+
+    function resetGame() {
+        player.x = 150;
+        player.y = 350;
+        player.vy = 0;
+        player.onGround = true;
+        obstacles = [];
+        distance = 0;
+        speed = 3;
+        gameState = 'playing';
+        frameCount = 0;
+        spawnTimer = 0;
+        updateUI();
+    }
+
+    function updateUI() {
+        distanceSpan.textContent = Math.floor(distance);
+        speedSpan.textContent = speed.toFixed(1);
+    }
+
+    function spawnObstacle() {
+        const type = Math.random() < 0.5 ? 'hole' : 'block';
+        const y = type === 'hole' ? 400 : 370;
+        obstacles.push({
+            x: W + 50,
+            y: y,
+            width: type === 'hole' ? 60 : 30,
+            height: type === 'hole' ? 30 : 35,
+            type: type,
+            active: true
+        });
+    }
+
+    function update() {
+        if (gameState !== 'playing') return;
+
+        frameCount++;
+
+        // Aumenta velocidade
+        if (frameCount % 120 === 0) {
+            speed = Math.min(6, speed + 0.1);
+            updateUI();
+        }
+
+        // Distância
+        distance += speed * 0.3;
+        updateUI();
+
+        // Pular
+        if ((keys.up) && player.onGround) {
+            player.vy = JUMP_FORCE;
+            player.onGround = false;
+        }
+
+        // Gravidade
+        player.vy += GRAVITY;
+        player.y += player.vy;
+
+        // Chão
+        if (player.y + player.size > 420) {
+            player.y = 420 - player.size;
+            player.vy = 0;
+            player.onGround = true;
+        }
+
+        // Spawn de obstáculos
+        spawnTimer++;
+        if (spawnTimer > Math.max(40, 100 - speed * 5)) {
+            spawnObstacle();
+            spawnTimer = 0;
+        }
+
+        // Move obstáculos
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            const obs = obstacles[i];
+            obs.x -= speed;
+
+            // Remove se sair da tela
+            if (obs.x + obs.width < 0) {
+                obstacles.splice(i, 1);
+                continue;
+            }
+
+            // Colisão com obstáculo
+            if (obs.type === 'block') {
+                if (player.x + player.size > obs.x &&
+                    player.x - player.size < obs.x + obs.width &&
+                    player.y + player.size > obs.y &&
+                    player.y - player.size < obs.y + obs.height) {
+                    gameState = 'gameover';
+                }
+            } else if (obs.type === 'hole') {
+                // Buraco: se o jogador estiver sobre ele e não estiver pulando
+                if (player.x + player.size > obs.x &&
+                    player.x - player.size < obs.x + obs.width &&
+                    player.y + player.size > obs.y) {
+                    if (player.onGround) {
+                        gameState = 'gameover';
+                    }
+                }
+            }
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        // Fundo espacial
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(0, 0, W, H);
+
+        // Estrelas
+        for (let i = 0; i < 80; i++) {
+            const x = (i * 137) % W;
+            const y = (i * 97) % H;
+            const size = (i % 3) + 1;
+            ctx.fillStyle = `rgba(255,255,255,${0.1 + (i % 5) * 0.05})`;
+            ctx.fillRect(x, y, size, size);
+        }
+
+        // Chão
+        ctx.fillStyle = '#1a2a3a';
+        ctx.fillRect(0, 420, W, 30);
+
+        // Linhas do chão (efeito de movimento)
+        for (let i = 0; i < 20; i++) {
+            const x = (i * 40 - distance * 0.5) % (20 * 40);
+            ctx.fillStyle = '#2a4a6a';
+            ctx.fillRect(x, 425, 15, 3);
+        }
+
+        // Obstáculos
+        for (let obs of obstacles) {
+            if (obs.type === 'block') {
+                ctx.fillStyle = '#ff3333';
+                ctx.shadowColor = '#ff3333';
+                ctx.shadowBlur = 15;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                ctx.shadowBlur = 0;
+                // Detalhe do bloco
+                ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                ctx.fillRect(obs.x + 3, obs.y + 3, obs.width - 6, 3);
+            } else {
+                // Buraco
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                ctx.fillStyle = 'rgba(255,0,0,0.2)';
+                ctx.fillRect(obs.x + 5, obs.y + 5, obs.width - 10, 5);
+            }
+        }
+
+        // Jogador
+        const px = player.x;
+        const py = player.y;
+
+        // Corpo
+        ctx.shadowColor = '#44ddff';
+        ctx.shadowBlur = 20;
+        ctx.fillStyle = '#44ddff';
+        ctx.beginPath();
+        ctx.arc(px, py, player.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Olhos
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(px - 7, py - 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(px + 7, py - 5, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0a0a1a';
+        ctx.beginPath();
+        ctx.arc(px - 6, py - 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(px + 8, py - 4, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Game Over
+        if (gameState === 'gameover') {
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.font = 'bold 50px "Courier New", monospace';
+            ctx.fillStyle = '#ff4d6d';
+            ctx.shadowColor = '#ff1a40';
+            ctx.shadowBlur = 30;
+            ctx.textAlign = 'center';
+            ctx.fillText('💀 GAME OVER', W / 2, H / 2 - 20);
+            ctx.shadowBlur = 0;
+            ctx.font = '22px "Courier New", monospace';
+            ctx.fillStyle = '#aabbdd';
+            ctx.fillText(`Distância: ${Math.floor(distance)}`, W / 2, H / 2 + 40);
+            ctx.textAlign = 'start';
+        }
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Controles
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a') { keys.left = true;
+            e.preventDefault(); }
+        if (e.key === 'ArrowRight' || e.key === 'd') { keys.right = true;
+            e.preventDefault(); }
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') { keys.up = true;
+            e.preventDefault(); }
+        if (e.key === 'r') resetGame();
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a') { keys.left = false;
+            e.preventDefault(); }
+        if (e.key === 'ArrowRight' || e.key === 'd') { keys.right = false;
+            e.preventDefault(); }
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') { keys.up = false;
+            e.preventDefault(); }
+    });
+
+    document.getElementById('resetButton').addEventListener('click', resetGame);
+
+    resetGame();
+    gameLoop();
+</script>
+</body>
+</html>

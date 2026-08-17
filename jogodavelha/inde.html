@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Velha · 3 Dificuldades</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0a0a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        .game-wrapper {
+            background: #1a1a2e;
+            padding: 2rem;
+            border-radius: 2rem;
+            border: 2px solid #3a3a5a;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 16px;
+            background: #0a0a1a;
+            width: 400px;
+            height: 400px;
+            cursor: pointer;
+            box-shadow: inset 0 0 30px rgba(100, 100, 255, 0.05);
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.2rem;
+            padding: 0.5rem 1.5rem;
+            background: #12122a;
+            border-radius: 60px;
+            border: 1px solid #2a2a4a;
+            color: #aabbdd;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .info-panel .stat {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+        .info-panel .stat label {
+            font-size: 0.8rem;
+            color: #6a7a9a;
+        }
+        .info-panel .stat span {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .info-panel .stat span.x-score {
+            color: #44ddff;
+        }
+        .info-panel .stat span.o-score {
+            color: #ff8844;
+        }
+        button {
+            background: #2a2a5a;
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 0.4rem 1.2rem;
+            border-radius: 60px;
+            border: 1px solid #4a4a7a;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: 0.1s;
+        }
+        button:hover {
+            background: #3a3a7a;
+            transform: scale(1.02);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button.active {
+            background: #4a4a8a;
+            border-color: #6a6aaa;
+            box-shadow: 0 0 20px rgba(100, 100, 255, 0.3);
+        }
+        .controls-hint {
+            color: #4a5a7a;
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        .turn-indicator {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 0.2rem 1.2rem;
+            border-radius: 30px;
+            background: #1a1a3a;
+            border: 1px solid #2a2a5a;
+            display: inline-block;
+        }
+        .turn-indicator.x-turn {
+            color: #44ddff;
+            border-color: #44ddff44;
+        }
+        .turn-indicator.o-turn {
+            color: #ff8844;
+            border-color: #ff884444;
+        }
+        .difficulty-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .difficulty-buttons button {
+            font-size: 0.8rem;
+            padding: 0.3rem 1rem;
+        }
+        .difficulty-buttons button.easy {
+            border-color: #44dd8844;
+        }
+        .difficulty-buttons button.easy.active {
+            background: #2a5a3a;
+            border-color: #44dd88;
+        }
+        .difficulty-buttons button.medium {
+            border-color: #dddd4444;
+        }
+        .difficulty-buttons button.medium.active {
+            background: #5a5a2a;
+            border-color: #dddd44;
+        }
+        .difficulty-buttons button.hard {
+            border-color: #dd444444;
+        }
+        .difficulty-buttons button.hard.active {
+            background: #5a2a2a;
+            border-color: #dd4444;
+        }
+        @media (max-width: 500px) {
+            .game-wrapper { padding: 1rem; }
+            canvas { width: 85vw; height: 85vw; max-width: 400px; max-height: 400px; }
+            .info-panel { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <div class="info-panel">
+        <div class="stat">
+            <label>❌ X</label>
+            <span class="x-score" id="xScore">0</span>
+        </div>
+        <div id="turnIndicator" class="turn-indicator x-turn">❌ Vez do X</div>
+        <div class="stat">
+            <label>⭕ O</label>
+            <span class="o-score" id="oScore">0</span>
+        </div>
+    </div>
+
+    <div class="difficulty-buttons">
+        <button id="easyBtn" class="easy">😊 Fácil</button>
+        <button id="mediumBtn" class="medium">🤔 Médio</button>
+        <button id="hardBtn" class="hard active">🧠 Difícil</button>
+    </div>
+
+    <div style="display: flex; gap: 0.8rem; justify-content: center; margin-top: 0.5rem; flex-wrap: wrap;">
+        <button id="resetButton">↺ NOVO</button>
+        <button id="aiButton">🤖 VS COMPUTADOR</button>
+        <button id="pvpButton">👥 VS JOGADOR</button>
+    </div>
+    <div class="controls-hint">Clique no tabuleiro para jogar · Escolha a dificuldade da IA!</div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const xScoreSpan = document.getElementById('xScore');
+        const oScoreSpan = document.getElementById('oScore');
+        const turnIndicator = document.getElementById('turnIndicator');
+
+        const SIZE = 400;
+        const CELL_SIZE = SIZE / 3;
+        const PIECE_SIZE = CELL_SIZE * 0.35;
+
+        let board = [
+            ['', '', ''],
+            ['', '', ''],
+            ['', '', '']
+        ];
+        let currentPlayer = 'X';
+        let gameOver = false;
+        let winner = null;
+        let xScore = 0;
+        let oScore = 0;
+        let vsAI = false;
+        let isAIThinking = false;
+        let difficulty = 'hard';
+
+        const WINNING_LINES = [
+            [[0,0], [0,1], [0,2]],
+            [[1,0], [1,1], [1,2]],
+            [[2,0], [2,1], [2,2]],
+            [[0,0], [1,0], [2,0]],
+            [[0,1], [1,1], [2,1]],
+            [[0,2], [1,2], [2,2]],
+            [[0,0], [1,1], [2,2]],
+            [[0,2], [1,1], [2,0]]
+        ];
+
+        function resetGame() {
+            board = [
+                ['', '', ''],
+                ['', '', ''],
+                ['', '', '']
+            ];
+            currentPlayer = 'X';
+            gameOver = false;
+            winner = null;
+            isAIThinking = false;
+            updateTurnIndicator();
+            draw();
+        }
+
+        function resetFull() {
+            resetGame();
+            xScore = 0;
+            oScore = 0;
+            updateScores();
+            draw();
+        }
+
+        function updateScores() {
+            xScoreSpan.textContent = xScore;
+            oScoreSpan.textContent = oScore;
+        }
+
+        function updateTurnIndicator() {
+            if (gameOver) {
+                if (winner === 'X') {
+                    turnIndicator.textContent = '🏆 X VENCEU!';
+                    turnIndicator.className = 'turn-indicator x-turn';
+                } else if (winner === 'O') {
+                    turnIndicator.textContent = '🏆 O VENCEU!';
+                    turnIndicator.className = 'turn-indicator o-turn';
+                } else if (winner === 'draw') {
+                    turnIndicator.textContent = '🤝 EMPATE!';
+                    turnIndicator.className = 'turn-indicator';
+                }
+                return;
+            }
+            if (currentPlayer === 'X') {
+                turnIndicator.textContent = '❌ Vez do X';
+                turnIndicator.className = 'turn-indicator x-turn';
+            } else {
+                turnIndicator.textContent = '⭕ Vez do O';
+                turnIndicator.className = 'turn-indicator o-turn';
+            }
+        }
+
+        function checkWinner() {
+            for (let line of WINNING_LINES) {
+                const [a, b, c] = line;
+                const valA = board[a[0]][a[1]];
+                const valB = board[b[0]][b[1]];
+                const valC = board[c[0]][c[1]];
+                if (valA && valA === valB && valA === valC) {
+                    return { winner: valA, line: line };
+                }
+            }
+            if (board.every(row => row.every(cell => cell !== ''))) {
+                return { winner: 'draw', line: null };
+            }
+            return { winner: null, line: null };
+        }
+
+        function makeMove(row, col) {
+            if (gameOver) return false;
+            if (board[row][col] !== '') return false;
+            if (isAIThinking) return false;
+
+            board[row][col] = currentPlayer;
+
+            const result = checkWinner();
+            if (result.winner) {
+                gameOver = true;
+                winner = result.winner;
+                if (winner === 'X') xScore++;
+                else if (winner === 'O') oScore++;
+                updateScores();
+                updateTurnIndicator();
+                draw();
+                return true;
+            }
+
+            currentPlayer = (currentPlayer === 'X' ? 'O' : 'X');
+            updateTurnIndicator();
+            draw();
+
+            if (vsAI && currentPlayer === 'O' && !gameOver) {
+                isAIThinking = true;
+                setTimeout(function() {
+                    aiMove();
+                }, 300);
+            }
+
+            return true;
+        }
+
+        // ----- IA -----
+        function minimax(board, depth, isMaximizing) {
+            const result = checkWinner();
+            if (result.winner === 'X') return -10 + depth;
+            if (result.winner === 'O') return 10 - depth;
+            if (result.winner === 'draw') return 0;
+
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let row = 0; row < 3; row++) {
+                    for (let col = 0; col < 3; col++) {
+                        if (board[row][col] === '') {
+                            board[row][col] = 'O';
+                            const score = minimax(board, depth + 1, false);
+                            board[row][col] = '';
+                            bestScore = Math.max(score, bestScore);
+                        }
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let row = 0; row < 3; row++) {
+                    for (let col = 0; col < 3; col++) {
+                        if (board[row][col] === '') {
+                            board[row][col] = 'X';
+                            const score = minimax(board, depth + 1, true);
+                            board[row][col] = '';
+                            bestScore = Math.min(score, bestScore);
+                        }
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        function easyMove() {
+            let emptyCells = [];
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    if (board[row][col] === '') {
+                        emptyCells.push({ row, col });
+                    }
+                }
+            }
+            if (emptyCells.length === 0) return null;
+            return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        }
+
+        function mediumMove() {
+            if (Math.random() < 0.3) {
+                return easyMove();
+            }
+            return hardMove();
+        }
+
+        function hardMove() {
+            let bestScore = -Infinity;
+            let bestMove = null;
+
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    if (board[row][col] === '') {
+                        board[row][col] = 'O';
+                        const score = minimax(board, 0, false);
+                        board[row][col] = '';
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = { row, col };
+                        }
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        function aiMove() {
+            if (gameOver) {
+                isAIThinking = false;
+                return;
+            }
+            if (currentPlayer !== 'O') {
+                isAIThinking = false;
+                return;
+            }
+
+            let bestMove = null;
+
+            switch (difficulty) {
+                case 'easy':
+                    bestMove = easyMove();
+                    break;
+                case 'medium':
+                    bestMove = mediumMove();
+                    break;
+                case 'hard':
+                default:
+                    bestMove = hardMove();
+                    break;
+            }
+
+            isAIThinking = false;
+
+            if (bestMove) {
+                makeMove(bestMove.row, bestMove.col);
+            }
+        }
+
+        // ----- DESENHO (SEM MENSAGEM DE DIFICULDADE) -----
+        function draw() {
+            ctx.clearRect(0, 0, SIZE, SIZE);
+
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, SIZE, SIZE);
+
+            ctx.strokeStyle = '#2a3a5a';
+            ctx.lineWidth = 2;
+
+            for (let i = 1; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * CELL_SIZE, 10);
+                ctx.lineTo(i * CELL_SIZE, SIZE - 10);
+                ctx.stroke();
+            }
+
+            for (let i = 1; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(10, i * CELL_SIZE);
+                ctx.lineTo(SIZE - 10, i * CELL_SIZE);
+                ctx.stroke();
+            }
+
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const val = board[row][col];
+                    const x = col * CELL_SIZE + CELL_SIZE / 2;
+                    const y = row * CELL_SIZE + CELL_SIZE / 2;
+
+                    if (val === 'X') {
+                        const size = PIECE_SIZE;
+                        ctx.shadowColor = '#44ddff';
+                        ctx.shadowBlur = 20;
+                        ctx.strokeStyle = '#44ddff';
+                        ctx.lineWidth = 4;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(x - size, y - size);
+                        ctx.lineTo(x + size, y + size);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(x + size, y - size);
+                        ctx.lineTo(x - size, y + size);
+                        ctx.stroke();
+                        ctx.shadowBlur = 0;
+                    } else if (val === 'O') {
+                        const size = PIECE_SIZE;
+                        ctx.shadowColor = '#ff8844';
+                        ctx.shadowBlur = 20;
+                        ctx.strokeStyle = '#ff8844';
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            if (gameOver && winner !== 'draw') {
+                const result = checkWinner();
+                if (result.line) {
+                    ctx.strokeStyle = 'rgba(255, 255, 100, 0.4)';
+                    ctx.lineWidth = 6;
+                    ctx.shadowColor = '#ffdd44';
+                    ctx.shadowBlur = 30;
+
+                    const [start, end] = [result.line[0], result.line[2]];
+                    const x1 = start[1] * CELL_SIZE + CELL_SIZE / 2;
+                    const y1 = start[0] * CELL_SIZE + CELL_SIZE / 2;
+                    const x2 = end[1] * CELL_SIZE + CELL_SIZE / 2;
+                    const y2 = end[0] * CELL_SIZE + CELL_SIZE / 2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+            }
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(0, 0, SIZE, SIZE);
+
+                if (winner === 'X') {
+                    ctx.font = 'bold 60px "Courier New", monospace';
+                    ctx.fillStyle = '#44ddff';
+                    ctx.shadowColor = '#44ddff';
+                    ctx.shadowBlur = 30;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('❌', SIZE / 2, SIZE / 2 - 10);
+                    ctx.shadowBlur = 0;
+                } else if (winner === 'O') {
+                    ctx.font = 'bold 60px "Courier New", monospace';
+                    ctx.fillStyle = '#ff8844';
+                    ctx.shadowColor = '#ff8844';
+                    ctx.shadowBlur = 30;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⭕', SIZE / 2, SIZE / 2 - 10);
+                    ctx.shadowBlur = 0;
+                } else if (winner === 'draw') {
+                    ctx.font = 'bold 40px "Courier New", monospace';
+                    ctx.fillStyle = '#aabbdd';
+                    ctx.shadowColor = '#aabbdd';
+                    ctx.shadowBlur = 20;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('EMPATE!', SIZE / 2, SIZE / 2);
+                    ctx.shadowBlur = 0;
+                }
+                ctx.textAlign = 'start';
+                ctx.textBaseline = 'alphabetic';
+            }
+        }
+
+        // ----- EVENTOS -----
+        canvas.addEventListener('click', function(e) {
+            if (gameOver) {
+                resetGame();
+                return;
+            }
+            if (vsAI && currentPlayer === 'O') return;
+            if (isAIThinking) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            const col = Math.floor(mouseX / CELL_SIZE);
+            const row = Math.floor(mouseY / CELL_SIZE);
+
+            if (row >= 0 && row < 3 && col >= 0 && col < 3) {
+                makeMove(row, col);
+            }
+        });
+
+        document.getElementById('easyBtn').addEventListener('click', function() {
+            difficulty = 'easy';
+            document.querySelectorAll('.difficulty-buttons button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            if (vsAI) resetFull();
+        });
+
+        document.getElementById('mediumBtn').addEventListener('click', function() {
+            difficulty = 'medium';
+            document.querySelectorAll('.difficulty-buttons button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            if (vsAI) resetFull();
+        });
+
+        document.getElementById('hardBtn').addEventListener('click', function() {
+            difficulty = 'hard';
+            document.querySelectorAll('.difficulty-buttons button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            if (vsAI) resetFull();
+        });
+
+        document.getElementById('resetButton').addEventListener('click', resetFull);
+
+        document.getElementById('aiButton').addEventListener('click', function() {
+            vsAI = true;
+            resetFull();
+            if (currentPlayer === 'O') {
+                isAIThinking = true;
+                setTimeout(function() {
+                    aiMove();
+                }, 300);
+            }
+        });
+
+        document.getElementById('pvpButton').addEventListener('click', function() {
+            vsAI = false;
+            resetFull();
+        });
+
+        resetFull();
+        window.addEventListener('resize', draw);
+    })();
+</script>
+</body>
+</html>

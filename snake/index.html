@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake · Clássico</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+    body {
+      background: #0b0e1a;
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+    }
+    .game-wrapper {
+      background: #1a1f2f;
+      padding: 1.5rem 2rem 2rem 2rem;
+      border-radius: 3rem;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.7), inset 0 0 8px #3e4a6b;
+      border: 2px solid #3b4560;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      border-radius: 24px;
+      box-shadow: inset 0 0 0 2px #0f121e, 0 0 0 3px #2d354b;
+      background-color: #0c0f18;
+      image-rendering: pixelated;
+      width: 500px;
+      height: 500px;
+    }
+    .info-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1.2rem;
+      padding: 0.4rem 1rem;
+      background: #111624;
+      border-radius: 60px;
+      border: 1px solid #2f3a55;
+      color: #d0e0ff;
+      font-weight: bold;
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      box-shadow: inset 0 2px 5px #05070c;
+    }
+    .info-panel span {
+      background: #1e253b;
+      padding: 0.2rem 1.2rem;
+      border-radius: 40px;
+      border: 1px solid #3f4c70;
+      color: #7bff7b;
+      text-shadow: 0 0 8px #5eff5e;
+      min-width: 60px;
+      text-align: center;
+    }
+    button {
+      background: #2e3b5a;
+      border: none;
+      color: white;
+      font-weight: bold;
+      font-size: 1.2rem;
+      padding: 0.4rem 1.8rem;
+      border-radius: 60px;
+      border: 1px solid #5a6b94;
+      box-shadow: 0 5px 0 #0e121e;
+      cursor: pointer;
+      transition: 0.08s linear;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+      background: #384770;
+      color: #f5f9ff;
+      text-shadow: 0 2px 0 #1e263b;
+    }
+    button:active {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #0e121e;
+    }
+    .status {
+      display: flex;
+      gap: 1.8rem;
+      align-items: baseline;
+    }
+    .status label {
+      font-size: 1rem;
+      color: #8e9fc7;
+      letter-spacing: 1px;
+    }
+    .controls-hint {
+      color: #5a6b8a;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 0.8rem;
+      letter-spacing: 1px;
+    }
+    @media (max-width: 600px) {
+      .game-wrapper { padding: 1rem; }
+      canvas { width: 90vw; height: 90vw; max-width: 500px; max-height: 500px; }
+      .info-panel { flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+      .controls-hint { font-size: 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="game-wrapper">
+  <canvas id="snakeCanvas" width="500" height="500"></canvas>
+
+  <div class="info-panel">
+    <div class="status">
+      <label>🐍 TAMANHO</label>
+      <span id="scoreDisplay">3</span>
+    </div>
+    <button id="resetButton">↺ NOVO</button>
+  </div>
+  <div class="controls-hint">⬆ ⬇ ⬅ ➡  ou  W A S D  ·  Espaço para pausar</div>
+</div>
+
+<script>
+  (function() {
+    const canvas = document.getElementById('snakeCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreSpan = document.getElementById('scoreDisplay');
+
+    // Configurações
+    const GRID_SIZE = 20;
+    const TILE_SIZE = 500 / GRID_SIZE;
+    const INITIAL_SNAKE = [
+      { x: 10, y: 10 },
+      { x: 9, y: 10 },
+      { x: 8, y: 10 }
+    ];
+    const INITIAL_DIR = { dx: 1, dy: 0 };
+
+    // Estado do jogo
+    let snake = [];
+    let food = { x: 15, y: 10 };
+    let direction = { dx: 1, dy: 0 };
+    let nextDirection = { dx: 1, dy: 0 };
+    let score = 3;
+    let gameState = 'playing';
+    let gameLoopInterval = null;
+    let speed = 150;
+
+    // ----- FUNÇÕES -----
+    function resetGame() {
+      if (gameLoopInterval) {
+        clearInterval(gameLoopInterval);
+        gameLoopInterval = null;
+      }
+
+      snake = INITIAL_SNAKE.map(seg => ({ ...seg }));
+      direction = { ...INITIAL_DIR };
+      nextDirection = { ...INITIAL_DIR };
+      score = 3;
+      gameState = 'playing';
+      speed = 150;
+      scoreSpan.textContent = score;
+      
+      generateFood();
+      startGameLoop();
+    }
+
+    function startGameLoop() {
+      if (gameLoopInterval) {
+        clearInterval(gameLoopInterval);
+      }
+      gameLoopInterval = setInterval(() => {
+        if (gameState === 'playing') {
+          update();
+        }
+        draw();
+      }, speed);
+    }
+
+    function generateFood() {
+      let newFood;
+      let attempts = 0;
+      const maxAttempts = 1000;
+      
+      do {
+        newFood = {
+          x: Math.floor(Math.random() * GRID_SIZE),
+          y: Math.floor(Math.random() * GRID_SIZE)
+        };
+        attempts++;
+      } while (
+        (isSnakePosition(newFood.x, newFood.y) || 
+         (newFood.x === food.x && newFood.y === food.y)) && 
+        attempts < maxAttempts
+      );
+      
+      food = newFood;
+    }
+
+    function isSnakePosition(x, y) {
+      return snake.some(seg => seg.x === x && seg.y === y);
+    }
+
+    function update() {
+      direction = { ...nextDirection };
+
+      const head = snake[0];
+      const newHead = {
+        x: head.x + direction.dx,
+        y: head.y + direction.dy
+      };
+
+      if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE) {
+        gameState = 'gameover';
+        return;
+      }
+
+      const willEat = (newHead.x === food.x && newHead.y === food.y);
+      
+      for (let i = 0; i < snake.length - (willEat ? 0 : 1); i++) {
+        if (snake[i].x === newHead.x && snake[i].y === newHead.y) {
+          gameState = 'gameover';
+          return;
+        }
+      }
+
+      snake.unshift(newHead);
+      
+      if (willEat) {
+        score++;
+        scoreSpan.textContent = score;
+        generateFood();
+        
+        if (speed > 70) {
+          speed -= 3;
+          clearInterval(gameLoopInterval);
+          gameLoopInterval = setInterval(() => {
+            if (gameState === 'playing') {
+              update();
+            }
+            draw();
+          }, speed);
+        }
+        
+        if (snake.length === GRID_SIZE * GRID_SIZE) {
+          gameState = 'won';
+          return;
+        }
+      } else {
+        snake.pop();
+      }
+    }
+
+    // ----- DESENHO DA MAÇÃ BONITINHA -----
+    function drawApple(x, y) {
+      const cx = x * TILE_SIZE + TILE_SIZE/2;
+      const cy = y * TILE_SIZE + TILE_SIZE/2;
+      const radius = TILE_SIZE/2 - 3;
+      
+      // Sombra da maçã
+      ctx.shadowColor = 'rgba(255, 50, 50, 0.3)';
+      ctx.shadowBlur = 25;
+      
+      // Corpo da maçã (vermelho com gradiente)
+      const gradient = ctx.createRadialGradient(
+        cx - radius*0.3, cy - radius*0.3, radius*0.1,
+        cx, cy, radius
+      );
+      gradient.addColorStop(0, '#ff6b6b');
+      gradient.addColorStop(0.3, '#ff2d2d');
+      gradient.addColorStop(0.7, '#cc0000');
+      gradient.addColorStop(1, '#8b0000');
+      
+      ctx.fillStyle = gradient;
+      ctx.shadowBlur = 20;
+      
+      // Formato da maçã (um pouco achatada em cima)
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 2, radius * 0.9, radius, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Brilho da maçã
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.beginPath();
+      ctx.ellipse(cx - radius*0.3, cy - radius*0.3, radius*0.25, radius*0.35, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Segundo brilho menor
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.beginPath();
+      ctx.ellipse(cx - radius*0.1, cy - radius*0.5, radius*0.1, radius*0.15, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Cabo da maçã (verde escuro)
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#3d5a3d';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx + 1, cy - radius + 1);
+      ctx.quadraticCurveTo(cx + 5, cy - radius - 8, cx + 2, cy - radius - 12);
+      ctx.stroke();
+      
+      // Folha da maçã
+      ctx.fillStyle = '#4caf50';
+      ctx.shadowColor = 'rgba(76, 175, 80, 0.3)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.ellipse(cx + 6, cy - radius - 8, 6, 4, 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Detalhe da folha (veia)
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#2e7d32';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 4, cy - radius - 8);
+      ctx.lineTo(cx + 8, cy - radius - 9);
+      ctx.stroke();
+      
+      // Pequeno brilho na folha
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.beginPath();
+      ctx.ellipse(cx + 7, cy - radius - 9, 2, 1.5, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Sombra da maçã no chão
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.beginPath();
+      ctx.ellipse(cx + 3, cy + radius + 2, radius * 0.5, radius * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
+    }
+
+    // ----- DESENHO -----
+    function draw() {
+      ctx.clearRect(0, 0, 500, 500);
+
+      // Fundo
+      ctx.fillStyle = '#0c0f18';
+      ctx.fillRect(0, 0, 500, 500);
+
+      // Grade
+      ctx.strokeStyle = '#1a2035';
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i <= GRID_SIZE; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * TILE_SIZE, 0);
+        ctx.lineTo(i * TILE_SIZE, 500);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * TILE_SIZE);
+        ctx.lineTo(500, i * TILE_SIZE);
+        ctx.stroke();
+      }
+
+      // Comida (Maçã bonitinha)
+      drawApple(food.x, food.y);
+
+      // Cobra
+      for (let i = 0; i < snake.length; i++) {
+        const seg = snake[i];
+        const x = seg.x * TILE_SIZE;
+        const y = seg.y * TILE_SIZE;
+        const padding = i === 0 ? 1 : 2;
+        const radius = 4;
+
+        if (i === 0) {
+          ctx.fillStyle = '#4cff4c';
+          ctx.shadowColor = '#4cff4c';
+          ctx.shadowBlur = 15;
+        } else {
+          ctx.shadowBlur = 0;
+          const g = Math.floor(150 + 80 * (1 - i / snake.length));
+          ctx.fillStyle = `rgb(30, ${g}, 30)`;
+        }
+
+        ctx.beginPath();
+        ctx.roundRect(x + 1, y + 1, TILE_SIZE - 2, TILE_SIZE - 2, radius);
+        ctx.fill();
+        
+        if (i === 0) {
+          ctx.shadowBlur = 0;
+          // Olhos da cobra
+          ctx.fillStyle = 'white';
+          let eyeOffset = TILE_SIZE * 0.25;
+          let eyeSize = TILE_SIZE * 0.15;
+          
+          if (direction.dx === 1) {
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset, y + eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset, y + TILE_SIZE - eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#0f0f1f';
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset + 2, y + eyeOffset, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset + 2, y + TILE_SIZE - eyeOffset, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+          } else if (direction.dx === -1) {
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset, y + eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset, y + TILE_SIZE - eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#0f0f1f';
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset - 2, y + eyeOffset, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset - 2, y + TILE_SIZE - eyeOffset, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+          } else if (direction.dy === -1) {
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset, y + eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset, y + eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#0f0f1f';
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset, y + eyeOffset + 2, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset, y + eyeOffset + 2, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+          } else if (direction.dy === 1) {
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset, y + TILE_SIZE - eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset, y + TILE_SIZE - eyeOffset, eyeSize, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#0f0f1f';
+            ctx.beginPath();
+            ctx.arc(x + eyeOffset, y + TILE_SIZE - eyeOffset - 2, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + TILE_SIZE - eyeOffset, y + TILE_SIZE - eyeOffset - 2, eyeSize/2, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+        }
+      }
+
+      // Mensagens de estado
+      ctx.shadowBlur = 0;
+      ctx.textAlign = 'center';
+      
+      if (gameState === 'paused') {
+        ctx.font = 'bold 48px "Courier New", monospace';
+        ctx.fillStyle = '#f7e05e';
+        ctx.shadowColor = '#ffbb33';
+        ctx.shadowBlur = 20;
+        ctx.fillText('⏸ PAUSADO', 250, 260);
+        ctx.shadowBlur = 0;
+      } else if (gameState === 'gameover') {
+        ctx.font = 'bold 44px "Courier New", monospace';
+        ctx.fillStyle = '#ff4d6d';
+        ctx.shadowColor = '#ff1a40';
+        ctx.shadowBlur = 24;
+        ctx.fillText('💀 GAME OVER', 250, 260);
+        ctx.font = '20px "Courier New", monospace';
+        ctx.fillStyle = '#aabbdd';
+        ctx.shadowBlur = 0;
+        ctx.fillText('Pressione NOVO ou ESPAÇO', 250, 310);
+      } else if (gameState === 'won') {
+        ctx.font = 'bold 42px "Courier New", monospace';
+        ctx.fillStyle = '#f7e05e';
+        ctx.shadowColor = '#ffbb33';
+        ctx.shadowBlur = 20;
+        ctx.fillText('🏆 VENCEU!', 250, 260);
+        ctx.shadowBlur = 0;
+        ctx.font = '20px "Courier New", monospace';
+        ctx.fillStyle = '#aabbdd';
+        ctx.fillText('Você preencheu todo o grid!', 250, 310);
+      }
+      
+      ctx.textAlign = 'start';
+    }
+
+    // Polyfill para roundRect
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+        if (r > w/2) r = w/2;
+        if (r > h/2) r = h/2;
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        return this;
+      };
+    }
+
+    // ----- CONTROLES -----
+    function changeDirection(newDx, newDy) {
+      if (direction.dx === -newDx && direction.dy === -newDy) {
+        return;
+      }
+      nextDirection = { dx: newDx, dy: newDy };
+    }
+
+    function handleKey(e) {
+      const key = e.key;
+      
+      if (key === ' ' || key === 'Space') {
+        e.preventDefault();
+        if (gameState === 'playing') {
+          gameState = 'paused';
+        } else if (gameState === 'paused') {
+          gameState = 'playing';
+        } else if (gameState === 'gameover' || gameState === 'won') {
+          resetGame();
+        }
+        draw();
+        return;
+      }
+
+      let newDx = 0, newDy = 0;
+      switch (key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          newDx = 0; newDy = -1;
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          newDx = 0; newDy = 1;
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          newDx = -1; newDy = 0;
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          newDx = 1; newDy = 0;
+          break;
+        default:
+          return;
+      }
+
+      e.preventDefault();
+      
+      if (gameState === 'playing') {
+        changeDirection(newDx, newDy);
+      } else if (gameState === 'gameover' || gameState === 'won') {
+        resetGame();
+      }
+    }
+
+    // ----- INICIALIZAÇÃO -----
+    document.getElementById('resetButton').addEventListener('click', resetGame);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key.startsWith('Arrow') || e.key === ' ' || e.key === 'Space') {
+        e.preventDefault();
+      }
+      handleKey(e);
+    });
+
+    canvas.setAttribute('tabindex', '0');
+    canvas.focus();
+    canvas.addEventListener('click', () => canvas.focus());
+
+    resetGame();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frogger · Definitivo</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { background: #0a0a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Courier New', monospace; }
+        .game-wrapper { background: #1a1a2e; padding: 2rem; border-radius: 2rem; border: 2px solid #3a3a5a; box-shadow: 0 20px 40px rgba(0,0,0,0.8); text-align: center; }
+        canvas { display: block; margin: 0 auto; border-radius: 16px; background: #0a0a1a; width: 600px; height: 500px; box-shadow: inset 0 0 30px rgba(100, 100, 255, 0.05); }
+        .info-panel { display: flex; justify-content: space-between; align-items: center; margin-top: 1.2rem; padding: 0.5rem 1.5rem; background: #12122a; border-radius: 60px; border: 1px solid #2a2a4a; color: #aabbdd; flex-wrap: wrap; gap: 0.5rem; }
+        .info-panel .stat { display: flex; gap: 0.8rem; align-items: center; }
+        .info-panel .stat label { font-size: 0.8rem; color: #6a7a9a; }
+        .info-panel .stat span { font-size: 1.2rem; font-weight: bold; }
+        .info-panel .stat span.frogs { color: #44ff88; }
+        .info-panel .stat span.level { color: #ff8844; }
+        button { background: #2a2a5a; border: none; color: white; font-weight: bold; font-size: 0.9rem; padding: 0.4rem 1.2rem; border-radius: 60px; border: 1px solid #4a4a7a; cursor: pointer; font-family: 'Courier New', monospace; transition: 0.1s; }
+        button:hover { background: #3a3a7a; transform: scale(1.02); }
+        button:active { transform: scale(0.95); }
+        .controls-hint { color: #4a5a7a; font-size: 0.7rem; text-align: center; margin-top: 0.5rem; }
+        @media (max-width: 650px) { .game-wrapper { padding: 1rem; } canvas { width: 95vw; height: 80vw; max-width: 600px; max-height: 500px; } }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas" width="600" height="500"></canvas>
+    <div class="info-panel">
+        <div class="stat"><label>🐸 SAPOS</label><span class="frogs" id="frogsDisplay">5</span></div>
+        <div class="stat"><label>📊 NÍVEL</label><span class="level" id="levelDisplay">1</span></div>
+        <button id="resetButton">↺ NOVO</button>
+    </div>
+    <div class="controls-hint">⬆ ⬇ ⬅ ➡ Mover · Chegue ao outro lado da estrada e do rio!</div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const frogsSpan = document.getElementById('frogsDisplay');
+        const levelSpan = document.getElementById('levelDisplay');
+
+        const W = 600, H = 500;
+        const CELL_SIZE = 40;
+        const COLS = 15;
+        const ROWS = 12;
+
+        // ========== ESTADO ==========
+        let frog = { x: 7, y: 11, targetX: 7, targetY: 11, moving: false, progress: 0, dx: 0, dy: 0 };
+        let cars = [], logs = [], turtles = [], goals = [];
+        let frogsSaved = 0, level = 1;
+        let gameState = 'playing', frameCount = 0, particles = [];
+
+        const LEVELS = {
+            1: { carSpeed: 1.2, logSpeed: 0.8, carsPerRow: 3, logsPerRow: 2 },
+            2: { carSpeed: 1.8, logSpeed: 1.0, carsPerRow: 4, logsPerRow: 2 },
+            3: { carSpeed: 2.3, logSpeed: 1.3, carsPerRow: 4, logsPerRow: 3 },
+            4: { carSpeed: 2.8, logSpeed: 1.6, carsPerRow: 5, logsPerRow: 3 },
+            5: { carSpeed: 3.5, logSpeed: 2.0, carsPerRow: 5, logsPerRow: 4 }
+        };
+
+        const CAR_COLORS = ['#e74c3c', '#f39c12', '#3498db', '#9b59b6', '#2ecc71', '#e67e22'];
+
+        // ========== FUNÇÕES ==========
+        function resetGame() {
+            frogsSaved = 0; level = 1; gameState = 'playing'; particles = [];
+            resetFrog(); generateLevel(); updateUI();
+        }
+
+        function resetFrog() {
+            frog.x = 7; frog.y = 11; frog.targetX = 7; frog.targetY = 11;
+            frog.moving = false; frog.progress = 0; frog.dx = 0; frog.dy = 0;
+        }
+
+        function generateLevel() {
+            const cfg = LEVELS[Math.min(level, 5)] || LEVELS[5];
+            cars = []; logs = []; turtles = []; goals = [];
+
+            // Carros - linhas 4, 6, 8
+            const roadRows = [4, 6, 8];
+            for (let row of roadRows) {
+                const numCars = cfg.carsPerRow + (row % 2 === 0 ? 1 : 0);
+                const direction = row % 2 === 0 ? 1 : -1;
+                const yPos = row * CELL_SIZE + 6;
+                for (let i = 0; i < numCars; i++) {
+                    const w = 30 + Math.random() * 15;
+                    const h = 18 + Math.random() * 8;
+                    const xPos = direction === 1 ? -w - i * (W / numCars) : W + w + i * (W / numCars);
+                    cars.push({
+                        x: xPos, y: yPos, w: w, h: h,
+                        speed: cfg.carSpeed * direction * (0.8 + Math.random() * 0.4),
+                        color: CAR_COLORS[i % CAR_COLORS.length],
+                        row: row
+                    });
+                }
+            }
+
+            // Troncos - linhas 1, 2, 3
+            const logRows = [1, 2, 3];
+            for (let row of logRows) {
+                const num = cfg.logsPerRow + (row % 2 === 0 ? 1 : 0);
+                const dir = row % 2 === 0 ? 1 : -1;
+                const yPos = row * CELL_SIZE + 6;
+                for (let i = 0; i < num; i++) {
+                    const w = 55 + Math.random() * 30;
+                    logs.push({
+                        x: dir === 1 ? -w - i * (W / num) : W + w + i * (W / num),
+                        y: yPos, w: w, h: 18,
+                        speed: cfg.logSpeed * dir * (0.8 + Math.random() * 0.4),
+                        row: row
+                    });
+                }
+            }
+
+            // Tartarugas - linha 2
+            for (let i = 0; i < 4; i++) {
+                turtles.push({
+                    x: 40 + i * 140 + Math.random() * 30,
+                    y: 2 * CELL_SIZE + 6,
+                    w: 35, h: 18,
+                    speed: 1.2 * (i % 2 === 0 ? 1 : -1),
+                    submerged: false,
+                    timer: Math.random() * 200
+                });
+            }
+
+            // Objetivos (no topo - linha 0)
+            for (let i = 0; i < 5; i++) {
+                goals.push({ x: i * 120 + 30, y: 6, w: 65, h: 22, filled: false });
+            }
+        }
+
+        function updateUI() {
+            frogsSpan.textContent = 5 - frogsSaved;
+            levelSpan.textContent = level;
+        }
+
+        function spawnParticles(x, y, color, n) {
+            for (let i = 0; i < n; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8 - 3,
+                    life: 20 + Math.random() * 30,
+                    maxLife: 50,
+                    size: 2 + Math.random() * 5,
+                    color
+                });
+            }
+        }
+
+        // ========== FUNÇÃO DE COLISÃO COM CARROS ==========
+        function checkCarCollision() {
+            if (gameState !== 'playing') return;
+            if (frog.y !== 4 && frog.y !== 6 && frog.y !== 8) return;
+            
+            for (let c of cars) {
+                if (frog.y !== c.row) continue;
+                const carCol = Math.floor((c.x + c.w/2) / CELL_SIZE);
+                if (frog.x === carCol) {
+                    gameState = 'gameover';
+                    spawnParticles(frog.x * CELL_SIZE + 20, frog.y * CELL_SIZE + 20, '#ff3333', 30);
+                    return;
+                }
+            }
+        }
+
+        // ========== ATUALIZAÇÃO ==========
+        function update() {
+            if (gameState !== 'playing') return;
+            frameCount++;
+
+            // ===== MOVIMENTO DO SAPO =====
+            if (frog.moving) {
+                frog.progress += 0.06;
+                if (frog.progress >= 1) {
+                    frog.moving = false; frog.progress = 0;
+                    frog.x = frog.targetX; frog.y = frog.targetY;
+
+                    // Verifica objetivo
+                    for (let g of goals) {
+                        const gc = Math.floor(g.x / CELL_SIZE);
+                        if (!g.filled && frog.x === gc && frog.y === 0) {
+                            g.filled = true; frogsSaved++;
+                            spawnParticles(g.x + g.w/2, g.y + g.h/2, '#44ff88', 25);
+                            if (frogsSaved >= 5) {
+                                level++; 
+                                if (level > 5) { gameState = 'won'; return; }
+                                frogsSaved = 0; generateLevel(); resetFrog(); updateUI(); return;
+                            }
+                            resetFrog(); updateUI(); return;
+                        }
+                    }
+
+                    // Água
+                    if (frog.y <= 3) {
+                        let safe = false;
+                        for (let l of logs) {
+                            const lc = Math.floor((l.x + l.w/2) / CELL_SIZE);
+                            if (frog.x === lc && frog.y === l.row) { safe = true; break; }
+                        }
+                        if (!safe) {
+                            for (let t of turtles) {
+                                const tc = Math.floor((t.x + t.w/2) / CELL_SIZE);
+                                if (frog.x === tc && frog.y === 2 && !t.submerged) { safe = true; break; }
+                            }
+                        }
+                        if (!safe) { gameState = 'gameover'; spawnParticles(frog.x * CELL_SIZE + 20, frog.y * CELL_SIZE + 20, '#44ddff', 30); return; }
+                    }
+
+                    checkCarCollision();
+                }
+            } else {
+                checkCarCollision();
+            }
+
+            // ===== CARROS =====
+            for (let c of cars) {
+                const oldX = c.x;
+                c.x += c.speed * 0.4;
+                c.y = c.row * CELL_SIZE + 6;
+                
+                if (!frog.moving && gameState === 'playing') {
+                    if (frog.y === c.row) {
+                        const oldCol = Math.floor((oldX + c.w/2) / CELL_SIZE);
+                        const newCol = Math.floor((c.x + c.w/2) / CELL_SIZE);
+                        if (frog.x >= Math.min(oldCol, newCol) && frog.x <= Math.max(oldCol, newCol)) {
+                            gameState = 'gameover';
+                            spawnParticles(frog.x * CELL_SIZE + 20, frog.y * CELL_SIZE + 20, '#ff3333', 30);
+                            return;
+                        }
+                    }
+                }
+                
+                if (c.speed > 0 && c.x > W + 50) c.x = -c.w - Math.random() * 100;
+                else if (c.speed < 0 && c.x < -c.w - 50) c.x = W + c.w + Math.random() * 100;
+            }
+
+            // ===== TRONCOS =====
+            for (let l of logs) {
+                l.x += l.speed * 0.3;
+                if (l.speed > 0 && l.x > W + 100) l.x = -l.w - Math.random() * 150;
+                if (l.speed < 0 && l.x < -l.w - 100) l.x = W + l.w + Math.random() * 150;
+
+                if (!frog.moving && frog.y === l.row) {
+                    const logCol = Math.floor((l.x + l.w/2) / CELL_SIZE);
+                    if (frog.x === logCol) {
+                        const oldLogX = l.x - l.speed * 0.3;
+                        const oldLogCol = Math.floor((oldLogX + l.w/2) / CELL_SIZE);
+                        if (logCol !== oldLogCol) {
+                            const newFrogX = frog.x + (logCol - oldLogCol);
+                            if (newFrogX >= 0 && newFrogX < COLS) {
+                                frog.x = newFrogX;
+                                frog.targetX = newFrogX;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ===== TARTARUGAS =====
+            for (let t of turtles) {
+                const oldX = t.x;
+                t.x += t.speed * 0.3;
+                t.timer++;
+                t.submerged = t.timer % 120 > 60;
+                if (t.x > W + 100) t.x = -t.w - 100;
+                if (t.x < -t.w - 100) t.x = W + 100;
+
+                if (!frog.moving && frog.y === 2 && !t.submerged) {
+                    const oldCol = Math.floor((oldX + t.w/2) / CELL_SIZE);
+                    const newCol = Math.floor((t.x + t.w/2) / CELL_SIZE);
+                    if (frog.x === oldCol && newCol !== oldCol) {
+                        if (newCol >= 0 && newCol < COLS) {
+                            frog.x = newCol;
+                            frog.targetX = newCol;
+                        }
+                    }
+                }
+            }
+
+            // ===== PARTÍCULAS =====
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            updateUI();
+        }
+
+        // ========== DESENHO ==========
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+
+            const grad = ctx.createLinearGradient(0, 0, 0, H);
+            grad.addColorStop(0, '#0a2a0a'); grad.addColorStop(0.25, '#0a1a2a');
+            grad.addColorStop(0.35, '#0a2a1a'); grad.addColorStop(0.6, '#1a1a1a');
+            grad.addColorStop(1, '#0a1a0a');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+            // Grid
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const x = c * CELL_SIZE, y = r * CELL_SIZE;
+                    
+                    if (r === 0) {
+                        // ===== LINHA 0: GRAMA COM OBJETIVOS =====
+                        ctx.fillStyle = '#0a3a0a';
+                        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                        ctx.fillStyle = 'rgba(50,255,50,0.04)';
+                        ctx.fillRect(x + 5, y + 8, 25, 4);
+                        ctx.fillRect(x + 15, y + 22, 15, 4);
+                        
+                    } else if (r <= 3) {
+                        // ===== RIO (linhas 1, 2, 3) =====
+                        ctx.fillStyle = (r + Math.floor(frameCount * 0.005)) % 2 === 0 ? '#0a2a3a' : '#061a2a';
+                        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+                        ctx.fillRect(x + Math.sin(r + frameCount * 0.02) * 8, y + 10, 25, 2);
+                        ctx.fillRect(x + Math.sin(r + 1 + frameCount * 0.025) * 8, y + 25, 18, 2);
+                        
+                    } else if (r >= 4 && r <= 9) {
+                        // ===== ESTRADA (linhas 4, 5, 6, 7, 8, 9) =====
+                        if (r === 5 || r === 7) {
+                            // CALÇADA (GRAMA)
+                            ctx.fillStyle = r % 2 === 0 ? '#0a3a0a' : '#0a4a0a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            ctx.fillStyle = 'rgba(50,255,50,0.04)';
+                            ctx.fillRect(x + 5, y + 8, 25, 4);
+                            ctx.fillRect(x + 15, y + 22, 15, 4);
+                        } else {
+                            // ASFALTO
+                            ctx.fillStyle = r % 2 === 0 ? '#1a1a1a' : '#2a1a1a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            if (r % 2 === 0) {
+                                ctx.fillStyle = 'rgba(255,255,200,0.06)';
+                                ctx.fillRect(x + 5, y + 18, 30, 2);
+                            }
+                        }
+                    } else {
+                        // ===== GRAMA (linhas 10 e 11) =====
+                        ctx.fillStyle = r % 2 === 0 ? '#0a3a0a' : '#0a4a0a';
+                        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                        ctx.fillStyle = 'rgba(50,255,50,0.04)';
+                        ctx.fillRect(x + 5, y + 8, 25, 4);
+                        ctx.fillRect(x + 15, y + 22, 15, 4);
+                    }
+                }
+            }
+
+            // Objetivos (no topo - linha 0)
+            for (let g of goals) {
+                ctx.fillStyle = g.filled ? 'rgba(68,255,136,0.4)' : 'rgba(255,255,100,0.15)';
+                ctx.shadowColor = g.filled ? '#44ff88' : 'transparent';
+                ctx.shadowBlur = g.filled ? 20 : 0;
+                ctx.beginPath();
+                ctx.roundRect(g.x, g.y, g.w, g.h, 8);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = g.filled ? '#44ff88' : 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(g.x, g.y, g.w, g.h, 8);
+                ctx.stroke();
+                if (g.filled) {
+                    ctx.fillStyle = '#44ff88';
+                    ctx.font = '22px Arial';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText('⭐', g.x + g.w/2, g.y + g.h/2 + 2);
+                }
+            }
+
+            // Troncos
+            for (let l of logs) {
+                ctx.shadowColor = '#4a2a1a';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#6a3a1a';
+                ctx.beginPath();
+                ctx.ellipse(l.x + l.w/2, l.y + l.h/2, l.w/2, l.h/2 - 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#4a2a1a';
+                ctx.beginPath();
+                ctx.ellipse(l.x + l.w/2, l.y + l.h/2 + 2, l.w/2 - 8, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(100,60,30,0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(l.x + l.w/2, l.y + l.h/2, l.w/3, 5, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Tartarugas
+            for (let t of turtles) {
+                if (t.submerged) {
+                    ctx.fillStyle = 'rgba(30,100,30,0.2)';
+                    ctx.fillRect(t.x + 5, t.y + 14, t.w - 10, 4);
+                    continue;
+                }
+                ctx.shadowColor = '#44aa44';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#2e8b57';
+                ctx.beginPath();
+                ctx.ellipse(t.x + t.w/2, t.y + t.h/2, t.w/2, t.h/2 - 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#3a9a5a';
+                ctx.beginPath();
+                ctx.arc(t.x + t.w - 6, t.y + 8, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#1a4a2a';
+                ctx.beginPath();
+                ctx.arc(t.x + t.w - 4, t.y + 6, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(20,80,30,0.3)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.ellipse(t.x + t.w/2 + (i-1)*8, t.y + t.h/2 - 1, 6, 4, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            // Carros
+            for (let c of cars) {
+                if (c.row !== 4 && c.row !== 6 && c.row !== 8) continue;
+                const expectedY = c.row * CELL_SIZE + 6;
+                if (Math.abs(c.y - expectedY) > 1) c.y = expectedY;
+                ctx.shadowColor = c.color;
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = c.color;
+                ctx.beginPath();
+                ctx.roundRect(c.x, c.y, c.w, c.h, 4);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.beginPath();
+                ctx.roundRect(c.x + 4, c.y + 3, 7, 5, 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.roundRect(c.x + c.w - 11, c.y + 3, 7, 5, 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffdd44';
+                ctx.fillRect(c.x + 2, c.y + 2, 4, 4);
+                ctx.fillRect(c.x + c.w - 6, c.y + 2, 4, 4);
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(c.x + 2, c.y + c.h - 6, 4, 4);
+                ctx.fillRect(c.x + c.w - 6, c.y + c.h - 6, 4, 4);
+            }
+
+            // Partículas
+            for (let p of particles) {
+                ctx.globalAlpha = p.life / p.maxLife;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+
+            // Sapo
+            const fx = frog.moving ? frog.x * CELL_SIZE + 20 + frog.dx * frog.progress * CELL_SIZE : frog.x * CELL_SIZE + 20;
+            const fy = frog.moving ? frog.y * CELL_SIZE + 20 + frog.dy * frog.progress * CELL_SIZE : frog.y * CELL_SIZE + 20;
+
+            ctx.shadowColor = '#44ff88';
+            ctx.shadowBlur = 25;
+            ctx.fillStyle = '#44ff88';
+            ctx.beginPath();
+            ctx.ellipse(fx, fy, 14, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(fx - 6, fy - 5, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(fx + 6, fy - 5, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#0a0a1a';
+            ctx.beginPath();
+            ctx.arc(fx - 5, fy - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(fx + 7, fy - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(fx - 4, fy - 5, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(fx + 8, fy - 5, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#226622';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(fx, fy + 5, 7, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            ctx.fillStyle = '#44ff88';
+            ctx.beginPath();
+            ctx.ellipse(fx - 15, fy + 11, 7, 4, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(fx + 15, fy + 11, 7, 4, -0.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Game Over / Win
+            if (gameState === 'gameover') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+                ctx.font = 'bold 50px "Courier New"';
+                ctx.fillStyle = '#ff4d6d'; ctx.shadowColor = '#ff1a40'; ctx.shadowBlur = 30;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('💀 GAME OVER', W/2, H/2 - 30);
+                ctx.shadowBlur = 0;
+                ctx.font = '24px "Courier New"';
+                ctx.fillStyle = '#aabbdd';
+                ctx.fillText(`Nível: ${level}  ·  Sapos: ${frogsSaved}`, W/2, H/2 + 40);
+            } else if (gameState === 'won') {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+                ctx.font = 'bold 48px "Courier New"';
+                ctx.fillStyle = '#f7e05e'; ctx.shadowColor = '#ffbb33'; ctx.shadowBlur = 30;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('🏆 VENCEU!', W/2, H/2 - 20);
+                ctx.shadowBlur = 0;
+                ctx.font = '24px "Courier New"';
+                ctx.fillStyle = '#aabbdd';
+                ctx.fillText('Todos os sapos foram salvos!', W/2, H/2 + 40);
+            }
+            ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+        }
+
+        // Polyfill roundRect
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                if (r > w/2) r = w/2;
+                if (r > h/2) r = h/2;
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                return this;
+            };
+        }
+
+        function moveFrog(dx, dy) {
+            if (gameState !== 'playing' || frog.moving) return;
+            const nx = frog.x + dx, ny = frog.y + dy;
+            if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
+            frog.targetX = nx; frog.targetY = ny;
+            frog.dx = dx; frog.dy = dy;
+            frog.moving = true; frog.progress = 0;
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowUp') { moveFrog(0, -1); e.preventDefault(); }
+            if (e.key === 'ArrowDown') { moveFrog(0, 1); e.preventDefault(); }
+            if (e.key === 'ArrowLeft') { moveFrog(-1, 0); e.preventDefault(); }
+            if (e.key === 'ArrowRight') { moveFrog(1, 0); e.preventDefault(); }
+            if (e.key === 'r' || e.key === 'R') resetGame();
+        });
+
+        document.getElementById('resetButton').addEventListener('click', resetGame);
+
+        resetGame();
+
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+        loop();
+
+        canvas.setAttribute('tabindex', '0');
+        canvas.focus();
+        canvas.addEventListener('click', () => canvas.focus());
+    })();
+</script>
+</body>
+</html>

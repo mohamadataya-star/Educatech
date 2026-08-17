@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campo Minado · Clássico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background: #0a0a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+        .game-wrapper {
+            background: #1a1a2e;
+            padding: 2rem;
+            border-radius: 2rem;
+            border: 2px solid #3a3a5a;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 12px;
+            background: #0a0a1a;
+            cursor: pointer;
+            box-shadow: inset 0 0 30px rgba(100, 100, 255, 0.05);
+            width: 500px;
+            height: 500px;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.2rem;
+            padding: 0.5rem 1.5rem;
+            background: #12122a;
+            border-radius: 60px;
+            border: 1px solid #2a2a4a;
+            color: #aabbdd;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .info-panel .stat {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+        }
+        .info-panel .stat label {
+            font-size: 0.8rem;
+            color: #6a7a9a;
+        }
+        .info-panel .stat span {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .info-panel .stat span.mines {
+            color: #ff4444;
+        }
+        .info-panel .stat span.flags {
+            color: #44ddff;
+        }
+        button {
+            background: #2a2a5a;
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 0.4rem 1.2rem;
+            border-radius: 60px;
+            border: 1px solid #4a4a7a;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: 0.1s;
+        }
+        button:hover {
+            background: #3a3a7a;
+            transform: scale(1.02);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button.active {
+            background: #4a4a8a;
+            border-color: #6a6aaa;
+            box-shadow: 0 0 20px rgba(100, 100, 255, 0.3);
+        }
+        .difficulty-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .difficulty-buttons button {
+            font-size: 0.8rem;
+            padding: 0.3rem 1rem;
+        }
+        .controls-hint {
+            color: #4a5a7a;
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        @media (max-width: 550px) {
+            .game-wrapper { padding: 1rem; }
+            canvas { width: 90vw; height: 90vw; max-width: 500px; max-height: 500px; }
+            .info-panel { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+
+    <div class="info-panel">
+        <div class="stat">
+            <label>💣 MINAS</label>
+            <span class="mines" id="minesDisplay">0</span>
+        </div>
+        <div class="stat">
+            <label>🚩 BANDEIRAS</label>
+            <span class="flags" id="flagsDisplay">0</span>
+        </div>
+        <button id="resetButton">↺ NOVO</button>
+    </div>
+
+    <div class="difficulty-buttons">
+        <button id="easyBtn" class="easy active">😊 Fácil (8x8)</button>
+        <button id="mediumBtn" class="medium">🤔 Médio (12x12)</button>
+        <button id="hardBtn" class="hard">🧠 Difícil (16x16)</button>
+    </div>
+    <div class="controls-hint">Clique esquerdo = revelar · Clique direito = bandeira · Descubra todas as minas!</div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minesSpan = document.getElementById('minesDisplay');
+        const flagsSpan = document.getElementById('flagsDisplay');
+
+        // Configurações
+        let COLS = 8;
+        let ROWS = 8;
+        let TOTAL_MINES = 10;
+        let CELL_SIZE = 500 / COLS;
+
+        // Estado do jogo
+        let grid = [];
+        let revealed = [];
+        let flags = [];
+        let gameOver = false;
+        let firstClick = true;
+        let flagCount = 0;
+        let revealedCount = 0;
+        let difficulty = 'easy';
+
+        // ----- FUNÇÕES -----
+        function resetGame() {
+            // Configura tamanho baseado na dificuldade
+            if (difficulty === 'easy') {
+                COLS = 8;
+                ROWS = 8;
+                TOTAL_MINES = 10;
+            } else if (difficulty === 'medium') {
+                COLS = 12;
+                ROWS = 12;
+                TOTAL_MINES = 30;
+            } else {
+                COLS = 16;
+                ROWS = 16;
+                TOTAL_MINES = 60;
+            }
+            CELL_SIZE = 500 / COLS;
+
+            // Inicializa arrays
+            grid = [];
+            revealed = [];
+            flags = [];
+            for (let row = 0; row < ROWS; row++) {
+                grid.push(new Array(COLS).fill(0));
+                revealed.push(new Array(COLS).fill(false));
+                flags.push(new Array(COLS).fill(false));
+            }
+
+            gameOver = false;
+            firstClick = true;
+            flagCount = 0;
+            revealedCount = 0;
+
+            updateUI();
+            draw();
+        }
+
+        function placeMines(excludeRow, excludeCol) {
+            let minesPlaced = 0;
+            while (minesPlaced < TOTAL_MINES) {
+                const row = Math.floor(Math.random() * ROWS);
+                const col = Math.floor(Math.random() * COLS);
+                if (grid[row][col] === -1) continue;
+                if (row === excludeRow && col === excludeCol) continue;
+                // Evita colocar mina nas adjacências do primeiro clique
+                if (Math.abs(row - excludeRow) <= 1 && Math.abs(col - excludeCol) <= 1) continue;
+                grid[row][col] = -1;
+                minesPlaced++;
+            }
+
+            // Calcula os números
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (grid[row][col] === -1) continue;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const nr = row + dr;
+                            const nc = col + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && grid[nr][nc] === -1) {
+                                count++;
+                            }
+                        }
+                    }
+                    grid[row][col] = count;
+                }
+            }
+        }
+
+        function revealCell(row, col) {
+            if (gameOver) return;
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+            if (revealed[row][col]) return;
+            if (flags[row][col]) return;
+
+            // Primeiro clique: coloca as minas
+            if (firstClick) {
+                placeMines(row, col);
+                firstClick = false;
+            }
+
+            revealed[row][col] = true;
+            revealedCount++;
+
+            // Se for mina, game over
+            if (grid[row][col] === -1) {
+                gameOver = true;
+                revealAllMines();
+                draw();
+                return;
+            }
+
+            // Se for vazio, revela os vizinhos (expansão)
+            if (grid[row][col] === 0) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const nr = row + dr;
+                        const nc = col + dc;
+                        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && !revealed[nr][nc] && !flags[nr][nc]) {
+                            revealCell(nr, nc);
+                        }
+                    }
+                }
+            }
+
+            updateUI();
+            draw();
+
+            // Verifica vitória
+            if (revealedCount === ROWS * COLS - TOTAL_MINES) {
+                gameOver = true;
+                draw();
+            }
+        }
+
+        function toggleFlag(row, col) {
+            if (gameOver) return;
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+            if (revealed[row][col]) return;
+
+            flags[row][col] = !flags[row][col];
+            flagCount += flags[row][col] ? 1 : -1;
+            updateUI();
+            draw();
+        }
+
+        function revealAllMines() {
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (grid[row][col] === -1) {
+                        revealed[row][col] = true;
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            minesSpan.textContent = TOTAL_MINES;
+            flagsSpan.textContent = flagCount;
+        }
+
+        // ----- DESENHO -----
+        function draw() {
+            ctx.clearRect(0, 0, 500, 500);
+
+            // Fundo
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, 500, 500);
+
+            // Desenha o grid
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const x = col * CELL_SIZE;
+                    const y = row * CELL_SIZE;
+
+                    if (revealed[row][col]) {
+                        // Célula revelada
+                        const val = grid[row][col];
+                        if (val === -1) {
+                            // Mina
+                            ctx.fillStyle = '#2a1a1a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            ctx.fillStyle = '#ff3333';
+                            ctx.shadowColor = '#ff3333';
+                            ctx.shadowBlur = 15;
+                            ctx.font = `${CELL_SIZE * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('💣', x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 2);
+                            ctx.shadowBlur = 0;
+                        } else if (val > 0) {
+                            // Número
+                            ctx.fillStyle = '#1a1a2a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            const colors = ['', '#44ddff', '#44ff88', '#ff4444', '#4444ff', '#ff44dd', '#44ddff', '#ff8844', '#aa44ff'];
+                            ctx.fillStyle = colors[val] || '#aabbdd';
+                            ctx.font = `bold ${CELL_SIZE * 0.6}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(val, x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 2);
+                        } else {
+                            // Vazio
+                            ctx.fillStyle = '#1a1a2a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                        }
+                    } else {
+                        // Célula não revelada
+                        if (flags[row][col]) {
+                            // Bandeira
+                            ctx.fillStyle = '#1a1a3a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            ctx.fillStyle = '#44ddff';
+                            ctx.font = `${CELL_SIZE * 0.5}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('🚩', x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 2);
+                        } else {
+                            ctx.fillStyle = '#1a1a3a';
+                            ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                            // Efeito 3D (relevo)
+                            ctx.fillStyle = '#2a2a5a';
+                            ctx.fillRect(x + 1, y + 1, CELL_SIZE - 2, 2);
+                            ctx.fillRect(x + 1, y + 1, 2, CELL_SIZE - 2);
+                            ctx.fillStyle = '#0a0a1a';
+                            ctx.fillRect(x + CELL_SIZE - 3, y + 1, 2, CELL_SIZE - 2);
+                            ctx.fillRect(x + 1, y + CELL_SIZE - 3, CELL_SIZE - 2, 2);
+                        }
+                    }
+
+                    // Bordas
+                    ctx.strokeStyle = '#1a1a2a';
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+                }
+            }
+
+            // Mensagem de Game Over
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, 500, 500);
+
+                // Verifica se ganhou
+                let won = revealedCount === ROWS * COLS - TOTAL_MINES;
+                ctx.font = 'bold 50px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                if (won) {
+                    ctx.fillStyle = '#f7e05e';
+                    ctx.shadowColor = '#ffbb33';
+                    ctx.shadowBlur = 30;
+                    ctx.fillText('🏆 VENCEU!', 250, 240);
+                    ctx.shadowBlur = 0;
+                    ctx.font = '22px "Courier New", monospace';
+                    ctx.fillStyle = '#aabbdd';
+                    ctx.fillText('Você encontrou todas as minas!', 250, 290);
+                } else {
+                    ctx.fillStyle = '#ff4d6d';
+                    ctx.shadowColor = '#ff1a40';
+                    ctx.shadowBlur = 30;
+                    ctx.fillText('💥 GAME OVER', 250, 240);
+                    ctx.shadowBlur = 0;
+                    ctx.font = '22px "Courier New", monospace';
+                    ctx.fillStyle = '#aabbdd';
+                    ctx.fillText('Clique em NOVO para jogar novamente', 250, 290);
+                }
+                ctx.textAlign = 'start';
+                ctx.textBaseline = 'alphabetic';
+            }
+        }
+
+        // ----- EVENTOS -----
+        canvas.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('click', function(e) {
+            if (gameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            const col = Math.floor(mouseX / CELL_SIZE);
+            const row = Math.floor(mouseY / CELL_SIZE);
+
+            if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+                if (e.button === 2) {
+                    toggleFlag(row, col);
+                } else {
+                    revealCell(row, col);
+                }
+            }
+        });
+
+        canvas.addEventListener('mousedown', function(e) {
+            if (e.button === 2) {
+                e.preventDefault();
+            }
+        });
+
+        // Clique direito para bandeira
+        canvas.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            if (gameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const mouseX = (e.clientX - rect.left) * scaleX;
+            const mouseY = (e.clientY - rect.top) * scaleY;
+
+            const col = Math.floor(mouseX / CELL_SIZE);
+            const row = Math.floor(mouseY / CELL_SIZE);
+
+            if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+                toggleFlag(row, col);
+            }
+        });
+
+        // ----- BOTÕES DE DIFICULDADE -----
+        document.getElementById('easyBtn').addEventListener('click', function() {
+            difficulty = 'easy';
+            document.querySelectorAll('.difficulty-buttons button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            resetGame();
+        });
+
+        document.getElementById('mediumBtn').addEventListener('click', function() {
+            difficulty = 'medium';
+            document.querySelectorAll('.difficulty-buttons button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            resetGame();
+        });
+
+        document.getElementById('hardBtn').addEventListener('click', function() {
+            difficulty = 'hard';
+            document.querySelectorAll('.difficulty-buttons button').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            resetGame();
+        });
+
+        document.getElementById('resetButton').addEventListener('click', resetGame);
+
+        // ----- LOOP -----
+        function gameLoop() {
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar
+        resetGame();
+        gameLoop();
+
+        // Focus no canvas para teclado
+        canvas.setAttribute('tabindex', '0');
+        canvas.focus();
+        canvas.addEventListener('click', () => canvas.focus());
+    })();
+</script>
+</body>
+</html>

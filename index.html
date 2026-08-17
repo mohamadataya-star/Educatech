@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Friv Classics · Jogos Free</title>
-    <!-- Estilo Friv / Retro -->
+    <title>FROV GAMES · Reviva o Friv</title>
     <style>
         * {
             margin: 0;
@@ -22,7 +21,6 @@
             padding: 20px;
         }
 
-        /* cabeçalho estilo friv */
         .header {
             width: 100%;
             max-width: 1200px;
@@ -102,7 +100,6 @@
             background: #ffcf5c !important;
         }
 
-        /* grid de jogos */
         .game-grid {
             max-width: 1200px;
             width: 100%;
@@ -182,17 +179,19 @@
             letter-spacing: 0.3px;
         }
 
-        /* modal / iframe */
+        /* ===== MODAL EM TELA CHEIA ===== */
         .modal-game {
             display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(6px);
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(8px);
             align-items: center;
             justify-content: center;
             z-index: 999;
-            padding: 15px;
+            padding: 10px;
         }
 
         .modal-game.active {
@@ -200,16 +199,16 @@
         }
 
         .modal-box {
-            background: #1f152b;
-            border-radius: 40px;
+            background: #1a1125;
+            border-radius: 24px;
             width: 100%;
-            max-width: 900px;
-            height: 90vh;
-            max-height: 700px;
+            max-width: 1200px;
+            height: 95vh;
+            max-height: 95vh;
             display: flex;
             flex-direction: column;
             border: 3px solid #f9b81b;
-            box-shadow: 0 25px 40px #000000dd;
+            box-shadow: 0 25px 60px #000000ee;
             overflow: hidden;
         }
 
@@ -217,9 +216,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 24px;
+            padding: 12px 24px;
             background: #2d1d3d;
             border-bottom: 3px solid #5f4278;
+            flex-shrink: 0;
         }
 
         .modal-header h3 {
@@ -241,6 +241,7 @@
             transition: 0.15s;
             box-shadow: 0 5px 0 #751f1f;
             border-bottom: 2px solid #a33;
+            flex-shrink: 0;
         }
 
         .modal-close:hover {
@@ -252,6 +253,8 @@
             flex: 1;
             background: #0d0813;
             position: relative;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .game-iframe-container iframe {
@@ -259,6 +262,7 @@
             height: 100%;
             border: none;
             background: #19121f;
+            display: block;
         }
 
         .fallback-msg {
@@ -266,9 +270,36 @@
             text-align: center;
             padding: 30px;
             font-size: 1.2rem;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
         }
 
-        /* responsivo */
+        /* Rodapé nostálgico */
+        .footer {
+            margin-top: 15px;
+            color: #8f7aa3;
+            font-weight: 500;
+            background: #1f142b;
+            padding: 10px 30px;
+            border-radius: 40px;
+            border: 1px solid #4f3665;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+        .footer span { color: #f9b81b; }
+        .footer .slogan {
+            display: block;
+            font-size: 0.75rem;
+            color: #b8a0c9;
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        /* Responsivo */
         @media (max-width: 700px) {
             .header {
                 flex-direction: column;
@@ -280,35 +311,26 @@
             .logo h1 { font-size: 1.8rem; }
             .nav-icons a { padding: 6px 14px; font-size: 0.9rem; }
             .game-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
-            .modal-box { max-height: 90vh; height: 95%; }
+            .modal-box {
+                max-height: 98vh;
+                height: 98vh;
+                border-radius: 16px;
+            }
+            .modal-header h3 { font-size: 1rem; }
+            .modal-close { width: 38px; height: 38px; font-size: 1.4rem; }
         }
 
         @media (max-width: 450px) {
             .game-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
             .game-thumb { font-size: 2.6rem; }
         }
-
-        /* rodapé */
-        .footer {
-            margin-top: 15px;
-            color: #8f7aa3;
-            font-weight: 500;
-            background: #1f142b;
-            padding: 10px 30px;
-            border-radius: 40px;
-            border: 1px solid #4f3665;
-            font-size: 0.9rem;
-            letter-spacing: 0.5px;
-        }
-        .footer span { color: #f9b81b; }
     </style>
 </head>
 <body>
-    <!-- cabeçalho -->
     <header class="header">
         <div class="logo">
-            <h1>🎮 Frov</h1>
-            <span>Games</span>
+            <h1>🎮 FROV</h1>
+            <span>GAMES</span>
         </div>
         <div class="nav-icons">
             <a href="#" class="destaque">🏠 Jogos</a>
@@ -317,15 +339,13 @@
         </div>
     </header>
 
-    <!-- grade de jogos -->
     <section class="game-grid" id="gameGrid"></section>
 
-    <!-- rodapé -->
     <div class="footer">
-        <span>✦</span> Frov Classic · Jogos livres <span>✦</span>
+        <span>✦</span> FROV GAMES · Reviva a magia do Friv <span>✦</span>
+        <span class="slogan">🎮 Uma viagem no tempo para os clássicos que marcaram sua infância</span>
     </div>
 
-    <!-- modal do jogo -->
     <div class="modal-game" id="gameModal">
         <div class="modal-box">
             <div class="modal-header">
@@ -333,7 +353,6 @@
                 <button class="modal-close" id="modalCloseBtn">✕</button>
             </div>
             <div class="game-iframe-container" id="iframeContainer">
-                <!-- iframe será inserido aqui -->
                 <div class="fallback-msg" id="fallbackMsg">
                     🕹️ Carregando jogo...
                 </div>
@@ -343,92 +362,19 @@
 
     <script>
         (function() {
-            // ---------- LISTA DE JOGOS (estilo Friv / clássicos) ----------
             const GAMES = [
-                {
-                    id: 'fireboy-watergirl',
-                    title: '🔥 Fireboy & Watergirl',
-                    emoji: '🧊',
-                    tag: 'Aventura',
-                    url: 'https://scratch.mit.edu/projects/1363909446/'
-                },
-                {
-                    id: 'happy-wheels',
-                    title: '🚴 Happy Wheels',
-                    emoji: '💀',
-                    tag: 'Corrida',
-                    url: 'https://html5.gamedistribution.com/9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d/'
-                },
-                {
-                    id: 'run-3',
-                    title: '🏃 Run 3',
-                    emoji: '🚀',
-                    tag: 'Corrida',
-                    url: 'https://html5.gamedistribution.com/7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f/'
-                },
-                {
-                    id: 'moto-x3m',
-                    title: '🏍️ Moto X3M',
-                    emoji: '🏁',
-                    tag: 'Motos',
-                    url: 'https://html5.gamedistribution.com/5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d/'
-                },
-                {
-                    id: 'slope',
-                    title: '⚡ Slope',
-                    emoji: '🔵',
-                    tag: 'Habilidade',
-                    url: 'https://html5.gamedistribution.com/2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e/'
-                },
-                {
-                    id: 'temple-run',
-                    title: '🏛️ Temple Run',
-                    emoji: '🐒',
-                    tag: 'Aventura',
-                    url: 'https://html5.gamedistribution.com/1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d/'
-                },
-                {
-                    id: 'subway-surfers',
-                    title: '🚇 Subway Surfers',
-                    emoji: '🏄',
-                    tag: 'Corrida',
-                    url: 'https://html5.gamedistribution.com/8f7a8b2f6b3c4d5e8a9b0c1d2e3f4a5b/'
-                },
-                {
-                    id: 'paper-io',
-                    title: '📄 Paper.io',
-                    emoji: '🟩',
-                    tag: 'Estratégia',
-                    url: 'https://html5.gamedistribution.com/4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a/'
-                },
-                {
-                    id: 'bubble-shooter',
-                    title: '🫧 Bubble Shooter',
-                    emoji: '🔮',
-                    tag: 'Quebra-cabeça',
-                    url: 'https://html5.gamedistribution.com/3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b/'
-                },
-                {
-                    id: 'pacman',
-                    title: '🟡 Pac-Man',
-                    emoji: '👻',
-                    tag: 'Clássico',
-                    url: './pacman'
-                },
-                {
-                    id: 'snake',
-                    title: '🐍 Snake',
-                    emoji: '🍎',
-                    tag: 'Clássico',
-                    url: 'https://html5.gamedistribution.com/2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a/'
-                },
-                {
-                    id: 'tetris',
-                    title: '🧩 Tetris',
-                    emoji: '🔲',
-                    tag: 'Clássico',
-                    url: 'https://html5.gamedistribution.com/1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e/'
-                }
+                { id: 'fireboy-watergirl', title: '🔥 Fireboy & Watergirl', emoji: '🧊', tag: 'Aventura', url: 'fireboywatergirl' },
+                { id: 'frogger', title: '🚗 Frogger', emoji: '🐸', tag: 'Aventura', url: 'frogger' },
+                { id: 'run-3', title: '🏃 Run 3', emoji: '🚀', tag: 'Corrida', url: 'run3' },
+                { id: 'jogo-da-velha', title: '⭕ Jogo da Velha', emoji: '❌', tag: 'Estratégia', url: 'jogodavelha' },
+                { id: 'breakout', title: '🏓 Breakout', emoji: '🧱', tag: 'Clássico', url: 'breakout' },
+                { id: '2048', title: '🔢 2048', emoji: '🧩', tag: 'Puzzle', url: '2048' },
+                { id: 'space-invaders', title: '👾 Space Invaders', emoji: '👽', tag: 'Tiro', url: 'spaceinvaders' },
+                { id: 'campo-minado', title: '🧠 Campo Minado', emoji: '💣', tag: 'Lógica', url: 'campominado' },
+                { id: 'flappy-bird', title: '🎯 Flappy Bird', emoji: '🐦', tag: 'Arcade', url: 'flappybird' },
+                { id: 'pacman', title: '🟡 Pac-Man', emoji: '👻', tag: 'Clássico', url: 'pacman' },
+                { id: 'snake', title: '🐍 Snake', emoji: '🍎', tag: 'Clássico', url: 'snake' },
+                { id: 'tetris', title: '🧩 Tetris', emoji: '🔲', tag: 'Clássico', url: 'tetris' }
             ];
 
             const grid = document.getElementById('gameGrid');
@@ -438,14 +384,12 @@
             const fallbackMsg = document.getElementById('fallbackMsg');
             const closeBtn = document.getElementById('modalCloseBtn');
 
-            // constrói os cards
             function renderGames() {
                 grid.innerHTML = '';
                 GAMES.forEach((game, index) => {
                     const card = document.createElement('div');
                     card.className = 'game-card';
                     card.setAttribute('data-index', index);
-                    // thumb com emoji
                     card.innerHTML = `
                         <div class="game-thumb">${game.emoji}</div>
                         <div class="game-title">${game.title}</div>
@@ -456,20 +400,20 @@
                 });
             }
 
-            // Abrir jogo no modal
             function openGame(index) {
                 const game = GAMES[index];
                 if (!game) return;
 
                 modalTitle.textContent = `${game.emoji} ${game.title}`;
-                // limpa iframe antigo
+                
+                // Remove iframe antigo
                 const oldIframe = iframeContainer.querySelector('iframe');
                 if (oldIframe) oldIframe.remove();
 
-                // esconde fallback
-                fallbackMsg.style.display = 'none';
+                // Mostra fallback enquanto carrega
+                fallbackMsg.style.display = 'block';
+                fallbackMsg.innerHTML = '🕹️ Carregando jogo...';
 
-                // cria iframe
                 const iframe = document.createElement('iframe');
                 iframe.src = game.url;
                 iframe.allow = 'autoplay; fullscreen';
@@ -480,58 +424,50 @@
                 iframe.style.border = 'none';
                 iframe.style.background = '#110b18';
 
-                // se falhar, mostra fallback (evento error)
+                // Quando o iframe carregar, esconde o fallback
+                iframe.addEventListener('load', function() {
+                    fallbackMsg.style.display = 'none';
+                });
+
                 iframe.addEventListener('error', function() {
                     fallbackMsg.style.display = 'block';
                     fallbackMsg.innerHTML = `⚠️ Não foi possível carregar ${game.title}. Tente novamente.`;
                 });
 
-                iframeContainer.prepend(iframe);
-                // mostra modal
+                iframeContainer.appendChild(iframe);
                 modal.classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
 
-            // fechar modal
             function closeModal() {
                 modal.classList.remove('active');
                 document.body.style.overflow = 'auto';
-                // opcional: remove iframe para liberar memória
                 const iframe = iframeContainer.querySelector('iframe');
                 if (iframe) iframe.remove();
                 fallbackMsg.style.display = 'block';
                 fallbackMsg.innerHTML = '🕹️ Carregando jogo...';
             }
 
-            // eventos
             closeBtn.addEventListener('click', closeModal);
-
-            // clicar fora do modal (no fundo escuro) fecha também
             modal.addEventListener('click', function(e) {
                 if (e.target === modal) closeModal();
             });
-
-            // tecla ESC fecha
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && modal.classList.contains('active')) {
                     closeModal();
                 }
             });
 
-            // Inicializa
             renderGames();
 
-            // (Opcional) Botão de "Favoritos" e "Novos" só para efeito visual
-            // Adiciona um pequeno comportamento nos links do header
             document.querySelectorAll('.nav-icons a').forEach(link => {
                 link.addEventListener('click', function(e) {
                     if (this.textContent.includes('Favoritos') || this.textContent.includes('Novos')) {
                         e.preventDefault();
-                        alert('⭐ Esta é uma demonstração do Friv Classico!');
+                        alert('⭐ FROV GAMES é uma homenagem ao Friv. Todos os jogos clássicos estão aqui!');
                     }
                 });
             });
-
         })();
     </script>
 </body>
